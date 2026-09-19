@@ -6,7 +6,7 @@ const PALETTE = {
   enemy: '#e8e8e8', enemyBullet: '#ff4d7e', hazard: '#ff4d7e', elite: '#ff9d2e',
   boss: '#ffd60a', gem: '#39ff88', heart: '#ff6b9a', chest: '#ffd60a',
   orbital: '#b46bff', beam: '#b46bff', mine: '#ffb03a', ui: '#9fb8c8',
-  uiDim: '#4a5a63', white: '#ffffff', vacuum: '#4da6ff', bigGem: '#ff3b30',
+  uiDim: '#4a5a63', white: '#ffffff', vacuum: '#4da6ff', bigGem: '#ff3b30', blaster: '#ff9d2e',
 };
 
 function hexToRgb(hex) {

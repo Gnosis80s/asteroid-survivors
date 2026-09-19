@@ -201,10 +201,12 @@ export function renderWorld(game, r) {
     r.circle(pt.x, pt.y, game.aura.radius * pulse, { color: 'orbital', width: 2, alpha: 0.28 });
   }
 
-  // Player bullets (homing missiles render as little darts).
+  // Player bullets (homing missiles render as little darts, blaster shots
+  // as orange teardrops).
   for (const id of world.query('bullet', 'transform')) {
     const t = world.get(id, 'transform');
-    const s = world.get(id, 'render').size;
+    const rd = world.get(id, 'render');
+    const s = rd.size;
     if (world.has(id, 'homing')) {
       const d = s;
       const local = [
@@ -212,9 +214,16 @@ export function renderWorld(game, r) {
         [-d * 1.3, 0], [-d * 1.6, -d * 1.0], [-d * 0.9, -d * 0.5], [d * 0.1, -d * 0.5],
       ];
       const pts = rotPoints(local, t.rot).map(([x, y]) => [x + t.x, y + t.y]);
-      r.polygon(pts, { color: 'playerBullet', width: 1.5, fill: true, alpha: 1, glow: 1 });
+      r.polygon(pts, { color: rd.color, width: 1.5, fill: true, alpha: 1, glow: 1 });
+    } else if (rd.shape === 'teardrop') {
+      const local = [
+        [s * 1.7, 0], [s * 0.5, s * 0.9], [-s * 0.4, s * 1.0], [-s * 1.0, s * 0.55],
+        [-s * 1.15, 0], [-s * 1.0, -s * 0.55], [-s * 0.4, -s * 1.0], [s * 0.5, -s * 0.9],
+      ];
+      const pts = rotPoints(local, t.rot).map(([x, y]) => [x + t.x, y + t.y]);
+      r.polygon(pts, { color: rd.color, width: 1, fill: true, alpha: 1, glow: 1 });
     } else {
-      r.circle(t.x, t.y, s, { color: 'playerBullet', width: 1, fill: true, alpha: 1 });
+      r.circle(t.x, t.y, s, { color: rd.color, width: 1, fill: true, alpha: 1 });
     }
   }
 

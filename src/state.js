@@ -47,6 +47,8 @@ export function createGame() {
     evoFlash: 0,
     newBest: null,
     runCredits: 0,
+    optionsSel: 0,
+    confirmReset: false,
     onDeath: null, onVictory: null, onBossKilled: null, onRevive: null, onChest: null, onQuit: null,
   };
 }

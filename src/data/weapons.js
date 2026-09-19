@@ -62,6 +62,43 @@ export const WEAPONS = [
     },
   },
   {
+    id: 'blaster', name: 'BLASTER', glyph: 'blaster', rarity: 'common',
+    tags: ['kinetic'], desc: 'Heavy piercing shot',
+    baseCooldown: 0.9,
+    evolve: { passive: 'projectileSpeed', into: 'railgun' },
+    fire(ctx, level) {
+      const amt = ctx.stats.amount || 0;
+      const n = 1 + amt;
+      const pierce = 2 + (level >= 3 ? 1 : 0) + (level >= 5 ? 1 : 0);
+      for (let i = 0; i < n; i++) {
+        spawnPlayerBullet(ctx.game, {
+          x: ctx.x, y: ctx.y, angle: ctx.rot + (Math.random() - 0.5) * 0.03,
+          speed: 720 * ctx.stats.projectileSpeedMult,
+          damage: dmg(26, level) * ctx.stats.damageMult,
+          radius: 4, lifetime: 1.0, color: 'blaster', shape: 'teardrop', pierce,
+        });
+      }
+    },
+  },
+  {
+    id: 'railgun', name: 'RAIL GUN', glyph: 'railgun', rarity: 'legendary',
+    tags: ['kinetic'], desc: 'Hypersonic full-pierce rail',
+    baseCooldown: 0.75,
+    fire(ctx, level) {
+      const amt = ctx.stats.amount || 0;
+      const n = 1 + amt;
+      const pierce = 8 + (level >= 3 ? 2 : 0) + (level >= 5 ? 4 : 0);
+      for (let i = 0; i < n; i++) {
+        spawnPlayerBullet(ctx.game, {
+          x: ctx.x, y: ctx.y, angle: ctx.rot + (Math.random() - 0.5) * 0.02,
+          speed: 820 * ctx.stats.projectileSpeedMult,
+          damage: dmg(32, level) * ctx.stats.damageMult,
+          radius: 4, lifetime: 1.1, color: 'blaster', shape: 'teardrop', pierce,
+        });
+      }
+    },
+  },
+  {
     id: 'spreadShot', name: 'SPREAD SHOT', glyph: 'spreadShot', rarity: 'common',
     tags: ['kinetic'], desc: 'Wide arc of projectiles',
     baseCooldown: 0.55,

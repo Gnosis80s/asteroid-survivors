@@ -72,7 +72,7 @@ export function spawnPlayerBullet(game, o) {
     damage: o.damage, pierce: o.pierce || 0, owner: 'player',
     kind: 'bullet', split: o.split || null, ttl: o.lifetime,
   });
-  game.world.add(id, 'render', { type: 'bullet', color: o.color, size: o.radius, glow: 0 });
+  game.world.add(id, 'render', { type: 'bullet', color: o.color, size: o.radius, glow: 0, shape: o.shape || 'dot' });
   return id;
 }
 

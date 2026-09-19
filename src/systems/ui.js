@@ -4,7 +4,7 @@
 import { CONFIG } from '../config.js';
 import { startRun, applyCard, generateOffers } from '../state.js';
 import { resolveCard, closeChest } from './leveling.js';
-import { persistSave } from '../save.js';
+import { persistSave, defaultSave } from '../save.js';
 import { drawGlyph } from '../data/glyphs.js';
 import { WEAPON_MAP } from '../data/weapons.js';
 import { PASSIVE_MAP } from '../data/passives.js';
@@ -250,7 +250,8 @@ function menuLayout() {
   const chars = CONFIG.characters.map((c, i) => ({ id: c.id, rect: { x: 56, y: 96 + i * 138, w: 470, h: 120 } }));
   const metas = CONFIG.meta.upgrades.map((m, i) => ({ id: m.id, rect: { x: 640, y: 96 + i * 54, w: 584, h: 44 } }));
   const start = { x: 640, y: 96 + CONFIG.meta.upgrades.length * 54 + 16, w: 584, h: 60 };
-  return { chars, metas, start };
+  const options = { x: 24, y: 22, w: 110, h: 32 };
+  return { chars, metas, start, options };
 }
 
 export function renderMenu(game, r) {
@@ -260,6 +261,11 @@ export function renderMenu(game, r) {
 
   const layout = menuLayout();
   const [mx, my] = mouse(game);
+
+  const ob = layout.options;
+  const oHover = inRect(mx, my, ob);
+  strokeRect(r, ob.x, ob.y, ob.w, ob.h, { color: oHover ? 'ui' : 'uiDim', width: 1 });
+  r.text('OPTIONS', ob.x + ob.w / 2, ob.y + ob.h / 2, { size: 14, color: oHover ? 'white' : 'ui', align: 'center' });
 
   for (let i = 0; i < layout.chars.length; i++) {
     const c = CONFIG.characters[i];
@@ -324,6 +330,14 @@ export function updateMenu(game, dt) {
   const input = game.input;
   const layout = menuLayout();
   const [mx, my] = mouse(game);
+
+  if (input.mouse.pressed && inRect(mx, my, layout.options)) {
+    game.state = 'options';
+    game.optionsSel = 0;
+    game.confirmReset = false;
+    game.audio?.select?.();
+    return;
+  }
 
   for (let i = 0; i < layout.chars.length; i++) {
     const c = CONFIG.characters[i];
@@ -615,11 +629,106 @@ export function updateQuitConfirm(game, dt) {
   }
 }
 
+// ---------------- Options menu ----------------
+
+function optionsButtons() {
+  const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+  return [
+    { x: W / 2 - 160, y: H / 2 - 30, w: 320, h: 56 },
+    { x: W / 2 - 160, y: H / 2 + 40, w: 320, h: 56 },
+  ];
+}
+
+function confirmButtons() {
+  const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+  const bw = 90, bh = 44, gap = 20;
+  const x = W / 2 - bw - gap / 2;
+  return [
+    { x, y: H / 2 + 10, w: bw, h: bh },
+    { x: x + bw + gap, y: H / 2 + 10, w: bw, h: bh },
+  ];
+}
+
+function doReset(game) {
+  const fresh = defaultSave();
+  game.save = fresh;
+  game.gold = 0;
+  game.selectedCharId = 'voyager';
+  game.meta = fresh.meta;
+  persistSave(fresh);
+}
+
+export function renderOptions(game, r) {
+  const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+  r.rect(0, 0, W, H, { color: 'bg', alpha: 0.9 });
+  r.text('OPTIONS', W / 2, 70, { size: 40, color: 'white', align: 'center' });
+  const [mx, my] = mouse(game);
+
+  if (game.confirmReset) {
+    r.text('Reset ALL progress?', W / 2, H / 2 - 70, { size: 28, color: 'heart', align: 'center' });
+    r.text('This clears credits, upgrades and unlocked ships.', W / 2, H / 2 - 38, { size: 13, color: 'ui', align: 'center' });
+    const btns = confirmButtons();
+    drawButton(r, btns[0], 'YES', game.optionsSel === 0, inRect(mx, my, btns[0]));
+    drawButton(r, btns[1], 'NO', game.optionsSel === 1, inRect(mx, my, btns[1]));
+  } else {
+    r.text(`Credits ${game.gold}  ·  Runs ${game.save.runs}  ·  Best ${formatTime(game.save.bestTime)}`, W / 2, H / 2 - 120, { size: 13, color: 'uiDim', align: 'center' });
+    const btns = optionsButtons();
+    drawButton(r, btns[0], 'RESET PROGRESS', game.optionsSel === 0, inRect(mx, my, btns[0]));
+    drawButton(r, btns[1], 'BACK', game.optionsSel === 1, inRect(mx, my, btns[1]));
+  }
+  r.text('← → select · ENTER confirm · ESC back', W / 2, H - 30, { size: 12, color: 'uiDim', align: 'center' });
+}
+
+export function updateOptions(game, dt) {
+  const input = game.input;
+  const [mx, my] = mouse(game);
+  const btns = game.confirmReset ? confirmButtons() : optionsButtons();
+
+  if (input.justPressed('Escape')) {
+    if (game.confirmReset) game.confirmReset = false;
+    else game.state = 'menu';
+    game.optionsSel = 0;
+    game.audio?.select?.();
+    return;
+  }
+
+  if (input.justPressed('ArrowLeft') || input.justPressed('ArrowRight') || input.justPressed('ArrowUp') || input.justPressed('ArrowDown') || input.justPressed('KeyA') || input.justPressed('KeyD')) {
+    game.optionsSel = (game.optionsSel + 1) % btns.length;
+    game.audio?.select?.();
+  }
+  if (input.mouse.moved) {
+    for (let i = 0; i < btns.length; i++) {
+      if (inRect(mx, my, btns[i])) game.optionsSel = i;
+    }
+  }
+
+  let chosen = -1;
+  if (input.mouse.pressed) {
+    for (let i = 0; i < btns.length; i++) {
+      if (inRect(mx, my, btns[i])) { chosen = i; break; }
+    }
+  } else if (input.justPressed('Enter')) {
+    chosen = game.optionsSel;
+  }
+  if (chosen < 0) return;
+
+  if (!game.confirmReset) {
+    if (chosen === 0) game.confirmReset = true;
+    else game.state = 'menu';
+  } else {
+    if (chosen === 0) doReset(game);
+    game.confirmReset = false;
+  }
+  game.optionsSel = 0;
+  game.audio?.select?.();
+}
+
 // ---------------- Dispatch ----------------
 
 export function render(game, r) {
   switch (game.state) {
     case 'menu': renderMenu(game, r); break;
+    case 'options': renderOptions(game, r); break;
     case 'playing':
       renderHUD(game, r);
       if (game.quitConfirm) renderQuitConfirm(game, r);
@@ -634,6 +743,7 @@ export function render(game, r) {
 export function update(game, dt) {
   switch (game.state) {
     case 'menu': updateMenu(game, dt); break;
+    case 'options': updateOptions(game, dt); break;
     case 'levelup': updateCardScreen(game, dt); break;
     case 'chest': updateChest(game, dt); break;
     case 'gameover':
