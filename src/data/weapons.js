@@ -341,6 +341,106 @@ export const WEAPONS = [
       game.audio?.laser?.();
     },
   },
+  {
+    id: 'hailstorm', name: 'HAILSTORM', glyph: 'hailstorm', rarity: 'legendary',
+    tags: ['kinetic'], desc: 'Rapid wide barrage',
+    unionFrom: ['machineGun', 'spreadShot'],
+    baseCooldown: 0.3,
+    fire(ctx, level) {
+      const amt = ctx.stats.amount || 0;
+      const n = 4 + (level >= 3 ? 2 : 0) + (level >= 5 ? 2 : 0) + amt;
+      const arc = 1.1;
+      for (let i = 0; i < n; i++) {
+        const t = n === 1 ? 0.5 : i / (n - 1);
+        spawnPlayerBullet(ctx.game, {
+          x: ctx.x, y: ctx.y, angle: ctx.rot + (t - 0.5) * arc,
+          speed: 520 * ctx.stats.projectileSpeedMult,
+          damage: dmg(8, level) * ctx.stats.damageMult,
+          radius: 2.5, lifetime: 1.0, color: 'playerBullet', pierce: 0,
+        });
+      }
+    },
+  },
+  {
+    id: 'annihilator', name: 'ANNIHILATOR', glyph: 'annihilator', rarity: 'legendary',
+    tags: ['kinetic', 'beam'], desc: 'Heavy slug plus piercing beam',
+    unionFrom: ['blaster', 'laserBeam'],
+    baseCooldown: 1.0,
+    fire(ctx, level) {
+      spawnPlayerBullet(ctx.game, {
+        x: ctx.x, y: ctx.y, angle: ctx.rot,
+        speed: 820 * ctx.stats.projectileSpeedMult,
+        damage: dmg(30, level) * ctx.stats.damageMult,
+        radius: 4, lifetime: 1.1, color: 'blaster', shape: 'teardrop', pierce: 10,
+      });
+      spawnBeam(ctx.game, {
+        x: ctx.x, y: ctx.y, rot: ctx.rot,
+        damage: dmg(20, level) * ctx.stats.damageMult,
+        width: 18 * ctx.stats.areaMult,
+        length: 600 * ctx.stats.areaMult,
+        ttl: 0.3, sweep: 0, color: 'beam',
+      });
+    },
+  },
+  {
+    id: 'clusterBomber', name: 'CLUSTER BOMBER', glyph: 'clusterBomber', rarity: 'legendary',
+    tags: ['explosive'], desc: 'Homing missiles plus mines',
+    unionFrom: ['homingMissiles', 'mineLayer'],
+    baseCooldown: 1.1,
+    fire(ctx, level) {
+      const amt = ctx.stats.amount || 0;
+      const n = 1 + (level >= 3 ? 1 : 0) + amt;
+      for (let i = 0; i < n; i++) {
+        spawnMissile(ctx.game, {
+          x: ctx.x, y: ctx.y, angle: ctx.rot + (Math.random() - 0.5) * 0.8,
+          speed: 320 * ctx.stats.projectileSpeedMult,
+          damage: dmg(16, level) * ctx.stats.damageMult,
+          radius: 3.5, lifetime: 2.6, color: 'playerBullet',
+        });
+      }
+      spawnMine(ctx.game, {
+        x: ctx.x - Math.cos(ctx.rot) * 34, y: ctx.y - Math.sin(ctx.rot) * 34,
+        damage: dmg(40, level) * ctx.stats.damageMult,
+        radius: 70 * ctx.stats.areaMult, armTime: 0.8, chain: false,
+      });
+    },
+  },
+  {
+    id: 'teslaLance', name: 'TESLA LANCE', glyph: 'teslaLance', rarity: 'legendary',
+    tags: ['beam', 'chain'], desc: 'Piercing beam plus chain lightning',
+    unionFrom: ['arcCoil', 'laserBeam'],
+    baseCooldown: 1.0,
+    fire(ctx, level) {
+      const world = ctx.world;
+      const game = ctx.game;
+      spawnBeam(ctx.game, {
+        x: ctx.x, y: ctx.y, rot: ctx.rot,
+        damage: dmg(18, level) * ctx.stats.damageMult,
+        width: 16 * ctx.stats.areaMult,
+        length: 560 * ctx.stats.areaMult,
+        ttl: 0.3, sweep: 0, color: 'beam',
+      });
+      const acquire = 420;
+      const chainRange = 170;
+      const chains = 3 + (level >= 3 ? 1 : 0) + (level >= 5 ? 1 : 0);
+      const boltDamage = dmg(12, level) * ctx.stats.damageMult;
+      const hit = new Set();
+      let cur = nearestInRange(world, ctx.x, ctx.y, acquire, hit);
+      if (cur >= 0) {
+        let fx = ctx.x, fy = ctx.y;
+        for (let jump = 0; jump < chains && cur >= 0; jump++) {
+          hit.add(cur);
+          const t = world.get(cur, 'transform');
+          damageEnemy(game, cur, boltDamage);
+          spawnBolt(game, { x1: fx, y1: fy, x2: t.x, y2: t.y, ttl: 0.16 });
+          fx = t.x;
+          fy = t.y;
+          cur = nearestInRange(world, fx, fy, chainRange, hit);
+        }
+      }
+      game.audio?.laser?.();
+    },
+  },
 ];
 
 export const WEAPON_MAP = Object.fromEntries(WEAPONS.map((w) => [w.id, w]));
@@ -362,6 +462,10 @@ const WEAPON_TEXT = {
   minefield: (l) => `mine · ${Math.round(dmg(46, l))} dmg · chain`,
   plasmaAura: (l) => `aura · ${Math.round(dmg(10, l))} dmg / tick`,
   arcCoil: (l) => `${3 + (l >= 3 ? 1 : 0) + (l >= 5 ? 1 : 0)} chains · ${Math.round(dmg(14, l))} dmg`,
+  hailstorm: (l) => `${4 + (l >= 3 ? 2 : 0) + (l >= 5 ? 2 : 0)} bullets · ${Math.round(dmg(8, l))} dmg each`,
+  annihilator: (l) => `beam + ${Math.round(dmg(30, l))} dmg slug`,
+  clusterBomber: (l) => `${1 + (l >= 3 ? 1 : 0)} missiles + mine · ${Math.round(dmg(16, l))} dmg`,
+  teslaLance: (l) => `beam + ${3 + (l >= 3 ? 1 : 0) + (l >= 5 ? 1 : 0)} chain lightning`,
 };
 
 export function weaponText(id) {

@@ -122,7 +122,7 @@ function drawCard(r, card, rect, selected, hover) {
 
   drawGlyph(r, card.glyph, x + w / 2, y + 70, 40, color);
 
-  if (card.kind === 'evolution') r.text('EVOLUTION', x + w / 2, y + 118, { size: 12, color: 'boss', align: 'center' });
+  if (card.kind === 'evolution' || card.kind === 'union') r.text(card.kind.toUpperCase(), x + w / 2, y + 118, { size: 12, color: 'boss', align: 'center' });
   r.text(card.name, x + w / 2, y + 142, { size: 20, color: 'white', align: 'center' });
 
   r.text(card.rarity.toUpperCase(), x + w / 2, y + 168, { size: 11, color, align: 'center' });
@@ -490,6 +490,8 @@ function drawRewardCard(r, card, rect) {
   r.text(card.name, rect.x + rect.w / 2, rect.y + 118, { size: 15, color: 'white', align: 'center' });
   if (card.kind === 'evolution') {
     r.text('EVOLVED', rect.x + rect.w / 2, rect.y + 148, { size: 13, color: 'boss', align: 'center' });
+  } else if (card.kind === 'union') {
+    r.text('UNION', rect.x + rect.w / 2, rect.y + 148, { size: 13, color: 'boss', align: 'center' });
   } else {
     r.text(`LV ${card.level} → ${card.level + 1}`, rect.x + rect.w / 2, rect.y + 148, { size: 13, color: 'gem', align: 'center' });
   }

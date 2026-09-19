@@ -9,6 +9,7 @@ import { PASSIVES, PASSIVE_MAP } from './data/passives.js';
 import { weightedPick } from './engine/math.js';
 
 const EVOLVED_IDS = new Set(WEAPONS.filter((w) => w.evolve).map((w) => w.evolve.into));
+const UNION_IDS = new Set(WEAPONS.filter((w) => w.unionFrom).map((w) => w.id));
 
 export function xpForLevel(level) {
   return Math.floor(CONFIG.xp.base + level * CONFIG.xp.linear + level * level * CONFIG.xp.quadratic);
@@ -168,9 +169,11 @@ function card(type, def, level) {
 function buildCardPool(game) {
   const cards = [];
   for (const wdef of WEAPONS) {
-    if (EVOLVED_IDS.has(wdef.id) || game.build.evolved.has(wdef.id)) continue;
     if (game.build.banished.has(wdef.id)) continue;
     const lvl = game.build.weapons.get(wdef.id) || 0;
+    // Evolved/union weapons can't be picked up fresh, only levelled once owned.
+    const special = EVOLVED_IDS.has(wdef.id) || UNION_IDS.has(wdef.id) || game.build.evolved.has(wdef.id);
+    if (lvl === 0 && special) continue;
     if (lvl === 0 && game.build.weapons.size >= CONFIG.slots.weapons) continue;
     if (lvl < 5) cards.push(card('weapon', wdef, lvl));
   }
@@ -190,6 +193,19 @@ function buildCardPool(game) {
       });
     }
   }
+  // Unions: two maxed weapons fuse into one.
+  for (const wdef of WEAPONS) {
+    if (!wdef.unionFrom) continue;
+    const [a, b] = wdef.unionFrom;
+    if ((game.build.weapons.get(a) || 0) >= 5 && (game.build.weapons.get(b) || 0) >= 5) {
+      cards.push({
+        kind: 'union', id: wdef.id, from: [a, b],
+        name: wdef.name, glyph: wdef.glyph, rarity: 'legendary',
+        desc: `${WEAPON_MAP[a].name} + ${WEAPON_MAP[b].name}`,
+        level: 0, maxLevel: 5, type: 'weapon', text: weaponText(wdef.id),
+      });
+    }
+  }
   return cards;
 }
 
@@ -199,15 +215,27 @@ export function generateOffers(game, kind) {
   let pool = buildCardPool(game);
   if (kind === 'chest') pool = pool.filter((c) => c.rarity !== 'common');
 
-  const luck = game.stats.luck;
-  const weighted = pool.map((c) => {
-    let weight = RARITY_WEIGHT[c.rarity] ?? 4;
-    if (c.rarity !== 'common') weight *= 1 + luck * 2.5;
-    return [c, weight];
-  });
-
   const offers = [];
   const used = new Set();
+
+  // Always surface a union/evolution headline when one is available, so
+  // the player never misses the big fusion/evolution moment.
+  const specials = pool.filter((c) => c.kind === 'union' || c.kind === 'evolution');
+  if (specials.length > 0) {
+    const sp = specials[Math.floor(Math.random() * specials.length)];
+    offers.push(sp);
+    used.add(sp.kind + ':' + sp.id);
+  }
+
+  const luck = game.stats.luck;
+  const weighted = pool
+    .filter((c) => !used.has(c.kind + ':' + c.id))
+    .map((c) => {
+      let weight = RARITY_WEIGHT[c.rarity] ?? 4;
+      if (c.rarity !== 'common') weight *= 1 + luck * 2.5;
+      return [c, weight];
+    });
+
   let guard = 0;
   while (offers.length < 3 && weighted.length > 0 && guard++ < 40) {
     const c = weightedPick(weighted);
@@ -215,7 +243,6 @@ export function generateOffers(game, kind) {
     if (used.has(key)) continue;
     used.add(key);
     offers.push(c);
-    // remove to avoid resampling the same card
     const idx = weighted.findIndex(([x]) => x === c);
     if (idx >= 0) weighted.splice(idx, 1);
   }
@@ -239,6 +266,15 @@ export function applyCard(game, card) {
     game.orbitalIds = [];
     game.orbitalSpec = null;
     game.banner = { text: `WEAPON EVOLVED: ${card.name}`, ttl: 2.5 };
+    game.evoFlash = 1;
+    game.audio?.evolution?.();
+  } else if (card.kind === 'union') {
+    for (const wid of card.from) {
+      game.build.weapons.delete(wid);
+      game.weaponState.delete(wid);
+    }
+    giveWeapon(game, card.id);
+    game.banner = { text: `UNION: ${card.name}`, ttl: 2.5 };
     game.evoFlash = 1;
     game.audio?.evolution?.();
   }
@@ -271,6 +307,17 @@ function findEvolvable(game) {
   return null;
 }
 
+function findUnionable(game) {
+  for (const wdef of WEAPONS) {
+    if (!wdef.unionFrom) continue;
+    const [a, b] = wdef.unionFrom;
+    if ((game.build.weapons.get(a) || 0) >= 5 && (game.build.weapons.get(b) || 0) >= 5) {
+      return wdef;
+    }
+  }
+  return null;
+}
+
 function randomOwnedUpgrade(game) {
   const pool = [];
   for (const [wid, lvl] of game.build.weapons) {
@@ -295,16 +342,28 @@ export function generateChestRewards(game) {
   const rewards = [];
 
   const evolvable = silver ? findEvolvable(game) : null;
-  if (evolvable) {
-    const into = WEAPON_MAP[evolvable.evolve.into];
-    rewards.push({
-      kind: 'evolution', id: into.id, from: evolvable.id,
-      name: into.name, glyph: into.glyph, rarity: 'legendary',
-      desc: into.desc, level: 0, maxLevel: 5, type: 'weapon',
-    });
+  const unionable = silver ? findUnionable(game) : null;
+  const headline = unionable || evolvable;
+  if (headline) {
+    if (headline.unionFrom) {
+      const [a, b] = headline.unionFrom;
+      rewards.push({
+        kind: 'union', id: headline.id, from: [a, b],
+        name: headline.name, glyph: headline.glyph, rarity: 'legendary',
+        desc: `${WEAPON_MAP[a].name} + ${WEAPON_MAP[b].name}`,
+        level: 0, maxLevel: 5, type: 'weapon', text: weaponText(headline.id),
+      });
+    } else {
+      const into = WEAPON_MAP[headline.evolve.into];
+      rewards.push({
+        kind: 'evolution', id: into.id, from: headline.id,
+        name: into.name, glyph: into.glyph, rarity: 'legendary',
+        desc: into.desc, level: 0, maxLevel: 5, type: 'weapon',
+      });
+    }
   }
 
-  const upgrades = tier - (evolvable ? 1 : 0);
+  const upgrades = tier - (headline ? 1 : 0);
   for (let i = 0; i < upgrades; i++) {
     const u = randomOwnedUpgrade(game);
     if (u) rewards.push(u);
