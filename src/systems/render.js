@@ -124,14 +124,14 @@ export function renderWorld(game, r) {
   const playerX = pt ? pt.x : CONFIG.WIDTH / 2;
   const playerY = pt ? pt.y : CONFIG.HEIGHT / 2;
 
-  // Beams first (under everything).
+  // Beams first (under everything): thin bright core + glowing halo.
   for (const id of world.query('beam', 'transform')) {
     const b = world.get(id, 'beam');
     const t = world.get(id, 'transform');
     const x2 = t.x + Math.cos(t.rot) * b.length;
     const y2 = t.y + Math.sin(t.rot) * b.length;
-    r.line(t.x, t.y, x2, y2, { color: b.color, width: b.width + 6, alpha: 0.25 });
-    r.line(t.x, t.y, x2, y2, { color: b.color, width: b.width, alpha: 0.9 });
+    r.line(t.x, t.y, x2, y2, { color: b.color, width: b.width * 0.45, alpha: 0.35, glow: 3 });
+    r.line(t.x, t.y, x2, y2, { color: 'white', width: 2.5, alpha: 0.9 });
   }
 
   // Mines.

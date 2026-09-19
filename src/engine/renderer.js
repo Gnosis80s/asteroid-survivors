@@ -118,6 +118,19 @@ export class Renderer {
     ctx.strokeStyle = this.color(s.color, s.alpha);
     ctx.lineWidth = s.width;
     ctx.stroke();
+    if (s.glow > 0) {
+      const prev = ctx.globalCompositeOperation;
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 1; i <= s.glow; i++) {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = this.color(s.color, s.alpha * 0.22 / i);
+        ctx.lineWidth = s.width + i * (4 + s.width * 0.5);
+        ctx.stroke();
+      }
+      ctx.globalCompositeOperation = prev;
+    }
   }
 
   rect(x, y, w, h, style = {}) {
