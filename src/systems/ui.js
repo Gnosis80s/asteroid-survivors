@@ -68,6 +68,8 @@ export function renderHUD(game, r) {
     r.text(String(lvl), W - 24, wy, { size: 13, color: 'playerBullet', align: 'right' });
     wy += 26;
   }
+  wy += 6;
+  r.text(`W ${game.build.weapons.size}/${CONFIG.slots.weapons}  P ${game.build.passives.size}/${CONFIG.slots.passives}`, W - 24, wy, { size: 11, color: 'uiDim', align: 'right' });
 
   const xpW = 360, xpH = 8, xpx = W / 2 - xpW / 2, xpy = CONFIG.HEIGHT - 20;
   strokeRect(r, xpx, xpy, xpW, xpH, { color: 'uiDim', width: 1 });

@@ -19,9 +19,10 @@ export function spawnEnemy(game, type, x, y) {
   const w = game.world;
   const id = w.create();
   const [minS, maxS] = def.speed;
-  const speed = rand(minS, maxS);
+  const curse = game.stats ? (game.stats.curse || 0) : 0;
+  const speed = rand(minS, maxS) * (1 + curse * 0.6);
   const angle = rand(0, TAU);
-  const hp = Math.round(def.hp * hpScale(game));
+  const hp = Math.round(def.hp * hpScale(game) * (1 + curse));
 
   w.add(id, 'transform', { x, y, rot: rand(0, TAU) });
   w.add(id, 'motion', {
@@ -308,7 +309,7 @@ export function damagePlayer(game, amount) {
 }
 
 export function addXp(game, amount) {
-  game.xp += amount;
+  game.xp += amount * (game.stats ? (game.stats.xpMult || 1) : 1);
 }
 
 export function awardGold(game, amount) {

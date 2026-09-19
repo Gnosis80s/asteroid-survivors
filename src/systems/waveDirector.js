@@ -67,7 +67,8 @@ function spawnBatch(game) {
   const table = TIER_TABLES[tier];
 
   // Fractional spawn accumulator for a smooth, gentle early-game ramp.
-  const budget = CONFIG.difficulty.baseSpawn + game.time * CONFIG.difficulty.spawnPerSec;
+  const curse = game.stats ? (game.stats.curse || 0) : 0;
+  const budget = (CONFIG.difficulty.baseSpawn + game.time * CONFIG.difficulty.spawnPerSec) * (1 + curse);
   game.wd.spawnAccum = (game.wd.spawnAccum || 0) + budget;
   let n = Math.floor(game.wd.spawnAccum);
   game.wd.spawnAccum -= n;

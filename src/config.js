@@ -13,6 +13,12 @@ export const CONFIG = {
   // Run length in seconds. Bosses arrive at 5:00, 10:00, 15:00.
   RUN_LENGTH: 15 * 60,
 
+  // Inventory slots (Vampire Survivors caps at 6 weapons + 6 passives).
+  slots: {
+    weapons: 6,
+    passives: 6,
+  },
+
   // ---- Functional palette. Color is always semantic (see design doc). ----
   colors: {
     bg: '#000000',
@@ -50,10 +56,11 @@ export const CONFIG = {
     baseHP: 100,
   },
 
-  // ---- XP / level curve ----
+  // ---- XP / level curve (quadratic, like Vampire Survivors) ----
   xp: {
-    base: 12,
-    growth: 1.28,             // xpNeeded = floor(base * growth^(level-1) + level*2)
+    base: 6,
+    linear: 4,
+    quadratic: 0.8,           // xpNeeded = base + level*linear + level^2*quadratic
   },
 
   // ---- Pickups ----
@@ -79,7 +86,7 @@ export const CONFIG = {
 
   // ---- Global difficulty scalars (per second / per level) ----
   difficulty: {
-    enemyHpPerLevel: 0.12,    // +12% enemy hp per player level
+    enemyHpPerLevel: 0.08,    // +8% enemy hp per player level
     enemySpeedPerSec: 0.4,    // gentle speed creep over a run
     baseSpawn: 0.4,           // enemies spawned per director tick at t=0
     spawnPerSec: 0.006,       // extra spawns added per second over a run

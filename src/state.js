@@ -11,7 +11,7 @@ import { weightedPick } from './engine/math.js';
 const EVOLVED_IDS = new Set(WEAPONS.filter((w) => w.evolve).map((w) => w.evolve.into));
 
 export function xpForLevel(level) {
-  return Math.floor(CONFIG.xp.base * Math.pow(CONFIG.xp.growth, level - 1) + level * 2);
+  return Math.floor(CONFIG.xp.base + level * CONFIG.xp.linear + level * level * CONFIG.xp.quadratic);
 }
 
 export function createGame() {
@@ -69,6 +69,8 @@ export function recomputeStats(game) {
     reverseMult: 0,
     amount: 0,
     regen: 0,
+    xpMult: 1,
+    curse: 0,
   };
   const m = game.meta;
   s.damageMult += (m.baseDamage || 0) * 0.05;
@@ -155,7 +157,7 @@ export function startRun(game) {
 function card(type, def, level) {
   return {
     kind: type, id: def.id, name: def.name, glyph: def.glyph,
-    rarity: def.rarity, desc: def.desc, level, maxLevel: 5, type,
+    rarity: def.rarity, desc: def.desc, level, maxLevel: def.maxLevel || 5, type,
   };
 }
 
@@ -165,12 +167,14 @@ function buildCardPool(game) {
     if (EVOLVED_IDS.has(wdef.id) || game.build.evolved.has(wdef.id)) continue;
     if (game.build.banished.has(wdef.id)) continue;
     const lvl = game.build.weapons.get(wdef.id) || 0;
+    if (lvl === 0 && game.build.weapons.size >= CONFIG.slots.weapons) continue;
     if (lvl < 5) cards.push(card('weapon', wdef, lvl));
   }
   for (const pdef of PASSIVES) {
     if (game.build.banished.has(pdef.id)) continue;
     const lvl = game.build.passives.get(pdef.id) || 0;
-    if (lvl < 5) cards.push(card('passive', pdef, lvl));
+    if (lvl === 0 && game.build.passives.size >= CONFIG.slots.passives) continue;
+    if (lvl < (pdef.maxLevel || 5)) cards.push(card('passive', pdef, lvl));
   }
   for (const [wid, lvl] of game.build.weapons) {
     const wdef = WEAPON_MAP[wid];
@@ -272,9 +276,9 @@ function randomOwnedUpgrade(game) {
     }
   }
   for (const [pid, lvl] of game.build.passives) {
-    if (lvl < 5) {
-      const def = PASSIVE_MAP[pid];
-      pool.push({ kind: 'passive', id: pid, name: def.name, glyph: def.glyph, rarity: def.rarity, level: lvl, maxLevel: 5, type: 'passive' });
+    const def = PASSIVE_MAP[pid];
+    if (lvl < (def.maxLevel || 5)) {
+      pool.push({ kind: 'passive', id: pid, name: def.name, glyph: def.glyph, rarity: def.rarity, level: lvl, maxLevel: def.maxLevel || 5, type: 'passive' });
     }
   }
   if (pool.length === 0) return null;
