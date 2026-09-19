@@ -177,10 +177,31 @@ function spawnPickup(game, kind, x, y, value) {
   return id;
 }
 
-export const spawnGem = (game, x, y, value) => spawnPickup(game, 'gem', x, y, value);
+export function spawnGem(game, x, y, value, big = false) {
+  const id = spawnPickup(game, 'gem', x, y, value);
+  if (big) {
+    game.world.get(id, 'pickup').big = true;
+    const r = game.world.get(id, 'render');
+    r.color = 'bigGem';
+    r.glow = 2;
+  }
+  return id;
+}
+
 export const spawnHeart = (game, x, y) => spawnPickup(game, 'heart', x, y, 0);
 export const spawnChest = (game, x, y) => spawnPickup(game, 'chest', x, y, 0);
 export const spawnMagnet = (game, x, y) => spawnPickup(game, 'magnet', x, y, 0);
+
+// Drop a gem; every gemCadence-th drop is a big red gem (Vampire Survivors).
+function dropGem(game, x, y, value) {
+  if (game.gemStreak >= CONFIG.pickup.gemCadence) {
+    game.gemStreak = 0;
+    spawnGem(game, x, y, CONFIG.pickup.bigGemValue, true);
+  } else {
+    game.gemStreak++;
+    spawnGem(game, x, y, value);
+  }
+}
 
 // ---------- particles ----------
 
@@ -244,7 +265,7 @@ export function killEnemy(game, id) {
     }
   } else {
     if (def.render === 'asteroid' || def.render === 'shard') {
-      spawnGem(game, x, y, CONFIG.pickup.gemValue);
+      dropGem(game, x, y, CONFIG.pickup.gemValue);
       if (Math.random() < CONFIG.pickup.heartChance) spawnHeart(game, x, y);
     }
   }

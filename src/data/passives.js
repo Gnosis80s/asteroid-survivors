@@ -58,7 +58,7 @@ export const PASSIVES = [
     apply: (s, lvl) => { s.reverseMult += 0.35 + (lvl - 1) * 0.12; },
   },
   {
-    id: 'splitCore', name: 'SPLIT CORE', glyph: 'splitCore', rarity: 'rare',
+    id: 'splitCore', name: 'SPLIT CORE', glyph: 'splitCore', rarity: 'epic',
     desc: '+1 projectile to every weapon per level',
     apply: (s, lvl) => { s.amount += lvl; },
   },

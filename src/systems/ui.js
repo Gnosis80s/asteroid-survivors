@@ -390,10 +390,24 @@ export function renderEnd(game, r) {
   const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
   r.rect(0, 0, W, H, { color: 'bg', alpha: 0.7 });
   const win = game.state === 'victory';
-  r.text(win ? 'VICTORY' : 'GAME OVER', W / 2, H / 2 - 120, { size: 60, color: win ? 'boss' : 'heart', align: 'center' });
-  r.text(`Time ${formatTime(game.time)}   Level ${game.level}   Score ${game.score}`, W / 2, H / 2 - 40, { size: 18, color: 'ui', align: 'center' });
-  r.text(`Credits earned  +${game.goldEarned}`, W / 2, H / 2, { size: 20, color: 'chest', align: 'center' });
-  r.text('ENTER to return to menu', W / 2, H / 2 + 80, { size: 16, color: 'uiDim', align: 'center' });
+  r.text(win ? 'VICTORY' : 'GAME OVER', W / 2, H / 2 - 150, { size: 60, color: win ? 'boss' : 'heart', align: 'center' });
+
+  const nb = game.newBest || {};
+  const rows = [
+    ['TIME', formatTime(game.time), nb.time],
+    ['LEVEL', String(game.level), nb.level],
+    ['CREDITS', `+${game.runCredits}`, nb.credits],
+    ['SCORE', String(game.score), false],
+  ];
+  let y = H / 2 - 70;
+  for (const [label, value, isBest] of rows) {
+    r.text(label, W / 2 - 130, y, { size: 16, color: 'uiDim', align: 'right' });
+    r.text(value, W / 2 - 100, y, { size: 20, color: 'white', align: 'left' });
+    if (isBest) r.text('NEW BEST', W / 2 + 120, y, { size: 14, color: 'boss', align: 'left' });
+    y += 34;
+  }
+
+  r.text('ENTER to return to menu', W / 2, H / 2 + 110, { size: 16, color: 'uiDim', align: 'center' });
 }
 
 export function updateEnd(game, dt) {

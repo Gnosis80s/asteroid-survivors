@@ -147,11 +147,17 @@ export function renderWorld(game, r) {
   for (const id of world.query('pickup', 'transform')) {
     const p = world.get(id, 'pickup');
     const t = world.get(id, 'transform');
-    const s = world.get(id, 'render').size;
+    const rd = world.get(id, 'render');
+    const s = rd.size;
     if (p.kind === 'gem') {
       const pts = rotPoints([[0, -s], [s, 0], [0, s], [-s, 0]], t.rot)
         .map(([x, y]) => [x + t.x, y + t.y]);
-      r.polygon(pts, { color: 'gem', width: 1, fill: true, alpha: 0.95, glow: 1 });
+      r.polygon(pts, { color: rd.color, width: 1, fill: true, alpha: 0.95, glow: rd.glow });
+      if (p.big) {
+        const inner = rotPoints([[0, -s * 0.4], [s * 0.4, 0], [0, s * 0.4], [-s * 0.4, 0]], t.rot)
+          .map(([x, y]) => [x + t.x, y + t.y]);
+        r.polygon(inner, { color: 'white', width: 1, fill: true, alpha: 0.7 });
+      }
     } else if (p.kind === 'heart') {
       r.circle(t.x, t.y, s, { color: 'heart', width: 2, fill: true, alpha: 0.95, glow: 1 });
     } else if (p.kind === 'magnet') {

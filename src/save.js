@@ -14,6 +14,7 @@ export function defaultSave() {
     meta: { ...DEFAULT_META },
     bestTime: 0,
     bestLevel: 0,
+    bestCredits: 0,
     runs: 0,
   };
 }
@@ -29,6 +30,7 @@ export function loadSave() {
       meta: { ...DEFAULT_META, ...(parsed.meta || {}) },
       bestTime: parsed.bestTime ?? 0,
       bestLevel: parsed.bestLevel ?? 0,
+      bestCredits: parsed.bestCredits ?? 0,
       runs: parsed.runs ?? 0,
     };
   } catch {

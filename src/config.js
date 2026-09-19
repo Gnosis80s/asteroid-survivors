@@ -65,6 +65,8 @@ export const CONFIG = {
     heartHeal: 40,
     heartChance: 0.005,
     magnetChance: 0.005,
+    gemCadence: 25,
+    bigGemValue: 20,
   },
 
   // ---- Wave director ----

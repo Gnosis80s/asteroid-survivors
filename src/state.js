@@ -43,6 +43,10 @@ export function createGame() {
     quitConfirm: false,
     quitSel: 0,
     quitArmed: false,
+    gemStreak: 0,
+    evoFlash: 0,
+    newBest: null,
+    runCredits: 0,
     onDeath: null, onVictory: null, onBossKilled: null, onRevive: null, onChest: null, onQuit: null,
   };
 }
@@ -114,6 +118,10 @@ export function startRun(game) {
   game.banner = null;
   game.wd = null;
   game.aura = null;
+  game.gemStreak = 0;
+  game.evoFlash = 0;
+  game.newBest = null;
+  game.runCredits = 0;
 
   recomputeStats(game);
   game.hp = game.stats.maxHp;
@@ -210,6 +218,8 @@ export function applyCard(game, card) {
   if (card.kind === 'weapon') {
     game.build.weapons.set(card.id, (game.build.weapons.get(card.id) || 0) + 1);
     if (!game.weaponState.has(card.id)) game.weaponState.set(card.id, { cd: 0 });
+    const lvl = game.build.weapons.get(card.id);
+    if (lvl === 3 || lvl === 5) game.audio?.breakpoint?.();
   } else if (card.kind === 'passive') {
     game.build.passives.set(card.id, (game.build.passives.get(card.id) || 0) + 1);
   } else if (card.kind === 'evolution') {
@@ -220,6 +230,9 @@ export function applyCard(game, card) {
     for (const oid of game.orbitalIds) game.world.destroy(oid);
     game.orbitalIds = [];
     game.orbitalSpec = null;
+    game.banner = { text: `WEAPON EVOLVED: ${card.name}`, ttl: 2.5 };
+    game.evoFlash = 1;
+    game.audio?.evolution?.();
   }
   recomputeStats(game);
   if (game.stats.maxHp > game.hp && card.kind === 'passive' && card.id === 'maxHp') {

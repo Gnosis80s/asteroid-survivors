@@ -65,8 +65,18 @@ function finishRun(win) {
   game.gold += gold;
   game.save.gold = game.gold;
   game.save.runs += 1;
-  game.save.bestTime = Math.max(game.save.bestTime, Math.floor(game.time));
+
+  const time = Math.floor(game.time);
+  game.newBest = {
+    time: time > game.save.bestTime,
+    level: game.level > game.save.bestLevel,
+    credits: gold > game.save.bestCredits,
+  };
+  game.save.bestTime = Math.max(game.save.bestTime, time);
   game.save.bestLevel = Math.max(game.save.bestLevel, game.level);
+  game.save.bestCredits = Math.max(game.save.bestCredits, gold);
+  game.runCredits = gold;
+
   persistSave(game.save);
   game.state = win ? 'victory' : 'gameover';
   game.bossAlive = -1;
@@ -101,6 +111,7 @@ game.onQuit = () => quitToMenu();
 
 function update(dt) {
   game.shake = Math.max(0, game.shake - dt * 26);
+  game.evoFlash = Math.max(0, game.evoFlash - dt * 2.5);
   if (game.banner) {
     game.banner.ttl -= dt;
     if (game.banner.ttl <= 0) game.banner = null;
@@ -156,6 +167,8 @@ function render() {
     renderer.rect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT, { color: 'bg', alpha: 0.4 });
     renderer.text('PAUSED', CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2, { size: 40, color: 'white', align: 'center' });
   }
+
+  if (game.evoFlash > 0) renderer.flash('boss', game.evoFlash * 0.4);
 
   renderer.postProcess();
 }

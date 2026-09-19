@@ -139,6 +139,19 @@ export class Audio {
     [523, 659, 784, 1047, 1319].forEach((f, i) => this._tone(f, 0.16, 'square', 0.035, null, i * 0.08));
     this._tone(1568, 0.5, 'triangle', 0.035, null, 5 * 0.08);
   }
+  bigGem() {
+    [880, 1174, 1568].forEach((f, i) => this._tone(f, 0.09, 'sine', 0.035, null, i * 0.05));
+  }
+  breakpoint() {
+    this._tone(523, 0.08, 'square', 0.04);
+    this._tone(784, 0.12, 'square', 0.04, null, 0.07);
+    this._tone(1047, 0.16, 'triangle', 0.04, null, 0.14);
+  }
+  evolution() {
+    this._tone(196, 0.4, 'sawtooth', 0.04);
+    [392, 523, 659, 784, 1047].forEach((f, i) => this._tone(f, 0.15, 'square', 0.04, null, 0.1 + i * 0.08));
+    this._tone(1568, 0.6, 'triangle', 0.04, null, 0.5);
+  }
   explosion() { this._noise(0.25, 0.09); this._tone(90, 0.2, 'sawtooth', 0.04, 40); }
   hit() { this._tone(200, 0.09, 'square', 0.05, 90); }
   playerHit() { this._noise(0.2, 0.08); this._tone(140, 0.15, 'sawtooth', 0.05, 60); }

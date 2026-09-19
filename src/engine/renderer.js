@@ -6,7 +6,7 @@ const PALETTE = {
   enemy: '#e8e8e8', enemyBullet: '#ff4d7e', hazard: '#ff4d7e', elite: '#ff9d2e',
   boss: '#ffd60a', gem: '#39ff88', heart: '#ff6b9a', chest: '#ffd60a',
   orbital: '#b46bff', beam: '#b46bff', mine: '#ffb03a', ui: '#9fb8c8',
-  uiDim: '#4a5a63', white: '#ffffff', vacuum: '#4da6ff',
+  uiDim: '#4a5a63', white: '#ffffff', vacuum: '#4da6ff', bigGem: '#ff3b30',
 };
 
 function hexToRgb(hex) {
@@ -125,6 +125,14 @@ export class Renderer {
     const ctx = this.ctx;
     ctx.fillStyle = this.color(s.color, s.alpha);
     ctx.fillRect(x, y, w, h);
+  }
+
+  // Full-screen flash overlay (ignores shake/transform).
+  flash(color, alpha) {
+    const ctx = this.ctx;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = this.color(color, alpha);
+    ctx.fillRect(0, 0, this.width, this.height);
   }
 
   text(str, x, y, { size = 14, color = 'ui', alpha = 1, align = 'left', font = 'monospace' } = {}) {

@@ -38,7 +38,7 @@ function collect(game, id, p) {
   const world = game.world;
   if (p.kind === 'gem') {
     addXp(game, p.value);
-    game.audio?.pickup?.();
+    game.audio?.[p.big ? 'bigGem' : 'pickup']?.();
   } else if (p.kind === 'heart') {
     game.hp = Math.min(game.stats.maxHp, game.hp + CONFIG.pickup.heartHeal);
     game.audio?.pickup?.();
