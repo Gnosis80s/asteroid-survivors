@@ -26,9 +26,10 @@ function drawStarfield(r) {
   }
 }
 
-function drawWrapped(x, y, pad, fn) {
+function drawWrapped(x, y, pad, fn, wrap = true) {
   const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
   fn(x, y);
+  if (!wrap) return;
   if (x < pad) fn(x + W, y);
   else if (x > W - pad) fn(x - W, y);
   if (y < pad) fn(x, y + H);
@@ -62,19 +63,19 @@ function drawShip(r, game, t, render) {
   drawWrapped(t.x, t.y, size, (x, y) => {
     const off = pts.map(([px, py]) => [px + (x - t.x), py + (y - t.y)]);
     r.polygon(off, { color: render.color, width: 2, fill: true, alpha, glow: 1 });
-  });
+  }, game.settings.wrap !== false);
 }
 
-function drawAsteroid(r, t, render, alpha) {
+function drawAsteroid(r, t, render, alpha, wrap = true) {
   const pts = rotPoints(render.points, t.rot).map(([x, y]) => [x + t.x, y + t.y]);
   const style = { color: render.color, width: 2, alpha, glow: render.glow || 0 };
   drawWrapped(t.x, t.y, render.size, (x, y) => {
     const off = pts.map(([px, py]) => [px + (x - t.x), py + (y - t.y)]);
     r.polygon(off, style);
-  });
+  }, wrap);
 }
 
-function drawSaucer(r, t, render, alpha, enemyType) {
+function drawSaucer(r, t, render, alpha, enemyType, wrap = true) {
   const size = render.size;
   const color = render.color;
   const glow = render.glow || 0;
@@ -97,7 +98,6 @@ function drawSaucer(r, t, render, alpha, enemyType) {
       return [x + lx * c - ly * s, y + lx * s + ly * c];
     };
     const LP = (pts) => rotPoints(pts, t.rot).map(([px, py]) => [px + x, py + y]);
-
     // Body + cockpit.
     r.polygon(LP(body), { color, width: 2, alpha, glow });
     r.polygon(LP(cockpit), { color, width: 1.5, alpha: alpha * 0.9 });
@@ -128,7 +128,7 @@ function drawSaucer(r, t, render, alpha, enemyType) {
         r.circle(tp[0], tp[1], 2.2, { color, width: 1.5, alpha });
       }
     }
-  });
+  }, wrap);
 }
 
 function drawShard(r, t, render, alpha) {
@@ -163,6 +163,7 @@ export function renderWorld(game, r) {
   const focus = CONFIG.render.focusFalloffRadius;
   const playerX = pt ? pt.x : CONFIG.WIDTH / 2;
   const playerY = pt ? pt.y : CONFIG.HEIGHT / 2;
+  const wrapEnabled = game.settings ? game.settings.wrap !== false : true;
 
   // Beams first (under everything): thin bright core + glowing halo.
   for (const id of world.query('beam', 'transform')) {
@@ -218,8 +219,8 @@ export function renderWorld(game, r) {
     const d = Math.hypot(dx, dy);
     let alpha = 1;
     if (d > focus) alpha = Math.max(0.3, 1 - (d - focus) / 900);
-    if (render.type === 'asteroid' || render.type === 'boss') drawAsteroid(r, t, render, alpha);
-    else if (render.type === 'saucer') drawSaucer(r, t, render, alpha, enemy.type);
+    if (render.type === 'asteroid' || render.type === 'boss') drawAsteroid(r, t, render, alpha, wrapEnabled);
+    else if (render.type === 'saucer') drawSaucer(r, t, render, alpha, enemy.type, wrapEnabled);
     else if (render.type === 'shard') drawShard(r, t, render, alpha);
   }
 
