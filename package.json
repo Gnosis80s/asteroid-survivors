@@ -1,0 +1,10 @@
+{
+  "name": "asteroid-survivors",
+  "version": "1.0.0",
+  "description": "Asteroids x Vampire Survivors vector arcade roguelite",
+  "type": "module",
+  "scripts": {
+    "serve": "python3 -m http.server 8000",
+    "smoke": "node test/smoke.mjs"
+  }
+}

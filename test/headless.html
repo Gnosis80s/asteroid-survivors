@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>headless test</title></head>
+<body>
+<canvas id="game" width="1280" height="720"></canvas>
+<pre id="out">RUNNING</pre>
+<script type="module">
+  import { CONFIG } from '../src/config.js';
+  import { Renderer } from '../src/engine/renderer.js';
+  import { Input } from '../src/engine/input.js';
+  import { Audio } from '../src/engine/audio.js';
+  import { createGame, startRun, applyCard, generateOffers } from '../src/state.js';
+  import { loadSave } from '../src/save.js';
+  import { openChest } from '../src/systems/leveling.js';
+
+  import { updatePlayerControl } from '../src/systems/playerControl.js';
+  import { updateMovement } from '../src/systems/movement.js';
+  import { updateWeapons } from '../src/systems/weaponSystem.js';
+  import { updateEnemyAI } from '../src/systems/enemyAI.js';
+  import { updateCollision } from '../src/systems/collision.js';
+  import { updatePickups } from '../src/systems/pickup.js';
+  import { updateParticles } from '../src/systems/particles.js';
+  import { updateWaveDirector } from '../src/systems/waveDirector.js';
+  import { updateLeveling } from '../src/systems/leveling.js';
+  import { renderWorld } from '../src/systems/render.js';
+  import * as ui from '../src/systems/ui.js';
+
+  const out = document.getElementById('out');
+  function report(ok, msg) {
+    out.textContent += '\n' + (ok ? 'ok - ' : 'FAIL - ') + msg;
+  }
+
+  try {
+    const renderer = new Renderer(document.getElementById('game'), CONFIG.WIDTH, CONFIG.HEIGHT);
+    const input = new Input();
+    const audio = new Audio();
+    const save = loadSave();
+    const game = createGame();
+    game.input = input; game.audio = audio; game.save = save;
+    game.meta = save.meta; game.gold = save.gold;
+    game.selectedCharId = 'voyager';
+    game.view = { scale: 1, ox: 0, oy: 0 };
+    game.char = CONFIG.characters[0];
+
+    startRun(game);
+    report(true, 'startRun');
+
+    // Drive gameplay + render many frames with a real 2D context.
+    for (let i = 0; i < 300; i++) {
+      updatePlayerControl(game, CONFIG.FIXED_DT);
+      updateMovement(game, CONFIG.FIXED_DT);
+      updateWeapons(game, CONFIG.FIXED_DT);
+      updateEnemyAI(game, CONFIG.FIXED_DT);
+      updateCollision(game, CONFIG.FIXED_DT);
+      updatePickups(game, CONFIG.FIXED_DT);
+      updateParticles(game, CONFIG.FIXED_DT);
+      updateWaveDirector(game, CONFIG.FIXED_DT);
+      updateLeveling(game, CONFIG.FIXED_DT);
+      renderWorld(game, renderer);
+      ui.render(game, renderer);
+    }
+    report(true, '300 gameplay frames rendered');
+
+    // Force a level-up and render the card screen.
+    game.xp = game.xpNeeded + 100;
+    updateLeveling(game, CONFIG.FIXED_DT);
+    report(game.state === 'levelup', 'level-up screen triggered');
+    renderWorld(game, renderer);
+    ui.render(game, renderer);
+    report(true, 'card screen rendered');
+
+    // Choose the first card and resume.
+    if (game.cardMode && game.cardMode.offers.length) {
+      applyCard(game, game.cardMode.offers[0]);
+      game.cardMode = null;
+      game.state = 'playing';
+    }
+    report(true, 'card chosen, resumed');
+
+    // Chest flow.
+    game.onChest = () => openChest(game);
+    game.onChest();
+    renderWorld(game, renderer);
+    ui.render(game, renderer);
+    report(game.state === 'chest', 'chest screen rendered');
+
+    // Menu render.
+    game.state = 'menu';
+    ui.render(game, renderer);
+    report(true, 'menu rendered');
+
+    out.textContent += '\nRESULT: OK';
+    document.title = 'RESULT_OK';
+  } catch (e) {
+    out.textContent += '\nRESULT: ERROR ' + (e && e.stack ? e.stack : e);
+    document.title = 'RESULT_ERROR';
+  }
+</script>
+</body>
+</html>
