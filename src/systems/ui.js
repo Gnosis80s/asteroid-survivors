@@ -60,14 +60,13 @@ export function renderHUD(game, r) {
 
   r.text(formatTime(game.time), W / 2, 26, { size: 28, color: 'ui', align: 'center' });
 
-  let wy = 22;
+  let wy = 24;
   for (const [wid, lvl] of game.build.weapons) {
     const def = WEAPON_MAP[wid];
     if (!def) continue;
-    drawGlyph(r, def.glyph, W - 150, wy, 9, 'ui');
-    r.text(def.name, W - 132, wy, { size: 11, color: 'ui', align: 'left' });
-    drawPips(r, W - 60, wy - 5, lvl, 5, 'playerBullet');
-    wy += 22;
+    drawGlyph(r, def.glyph, W - 54, wy, 11, 'ui');
+    r.text(String(lvl), W - 24, wy, { size: 13, color: 'playerBullet', align: 'right' });
+    wy += 26;
   }
 
   const xpW = 360, xpH = 8, xpx = W / 2 - xpW / 2, xpy = CONFIG.HEIGHT - 20;

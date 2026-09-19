@@ -27,6 +27,10 @@ export class Renderer {
     this.shakeX = 0;
     this.shakeY = 0;
     this._rgbCache = new Map();
+    this._bloom = null;
+    this._bloomCtx = null;
+    this._scan = null;
+    this._vignette = null;
   }
 
   _rgb(hex) {
@@ -168,5 +172,80 @@ export class Renderer {
       ctx.stroke();
     }
     ctx.globalCompositeOperation = prev;
+  }
+
+  // Post-process the finished frame with CRT effects: phosphor bloom,
+  // contrast/saturation punch, scanlines, and a vignette. Call once per
+  // frame after all drawing.
+  postProcess() {
+    const ctx = this.ctx;
+    const w = this.width, h = this.height;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (this._filterOk === undefined) this._filterOk = typeof ctx.filter === 'string';
+
+    ctx.save();
+
+    if (this._filterOk) {
+      // Phosphor bloom: a wide soft halo plus a tight bright core.
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.filter = 'blur(16px)';
+      ctx.globalAlpha = 0.5;
+      ctx.drawImage(this.canvas, 0, 0);
+      ctx.filter = 'blur(5px)';
+      ctx.globalAlpha = 0.4;
+      ctx.drawImage(this.canvas, 0, 0);
+      ctx.filter = 'none';
+
+      // Vivid phosphor: punch up contrast and saturation.
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+      ctx.filter = 'contrast(1.07) saturate(1.35) brightness(1.03)';
+      ctx.drawImage(this.canvas, 0, 0);
+      ctx.filter = 'none';
+    } else {
+      // Fallback bloom: downsample + additive upsample.
+      const bw = Math.max(1, w >> 2), bh = Math.max(1, h >> 2);
+      if (!this._bloom) {
+        this._bloom = document.createElement('canvas');
+        this._bloom.width = bw;
+        this._bloom.height = bh;
+        this._bloomCtx = this._bloom.getContext('2d');
+      }
+      this._bloomCtx.clearRect(0, 0, bw, bh);
+      this._bloomCtx.drawImage(this.canvas, 0, 0, bw, bh);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.imageSmoothingEnabled = true;
+      ctx.globalAlpha = 0.5;
+      ctx.drawImage(this._bloom, 0, 0, w, h);
+      ctx.globalAlpha = 0.3;
+      ctx.drawImage(this._bloom, 0, 0, w, h);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+
+    // Scanlines (subtle).
+    if (!this._scan) {
+      const c = document.createElement('canvas');
+      c.width = 1;
+      c.height = 3;
+      const cc = c.getContext('2d');
+      cc.fillStyle = 'rgba(0,0,0,0.07)';
+      cc.fillRect(0, 0, 1, 1);
+      this._scan = ctx.createPattern(c, 'repeat');
+    }
+    ctx.fillStyle = this._scan;
+    ctx.fillRect(0, 0, w, h);
+
+    // Vignette.
+    if (!this._vignette) {
+      const g = ctx.createRadialGradient(w / 2, h / 2, h * 0.32, w / 2, h / 2, h * 0.92);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, 'rgba(0,0,0,0.58)');
+      this._vignette = g;
+    }
+    ctx.fillStyle = this._vignette;
+    ctx.fillRect(0, 0, w, h);
   }
 }

@@ -156,6 +156,8 @@ function render() {
     renderer.rect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT, { color: 'bg', alpha: 0.4 });
     renderer.text('PAUSED', CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2, { size: 40, color: 'white', align: 'center' });
   }
+
+  renderer.postProcess();
 }
 
 let fps = 60;

@@ -4,24 +4,24 @@
 export const ENEMIES = {
   asteroid_small: {
     id: 'asteroid_small', name: 'Asteroid', tier: 1, hp: 14, radius: 14,
-    speed: [70, 120], vrot: [-1.5, 1.5], contactDamage: 18, score: 10, gold: 1,
+    speed: [70, 120], vrot: [-1.5, 1.5], contactDamage: 30, score: 10, gold: 1,
     ai: 'drift', color: 'enemy', render: 'asteroid', glow: 0, split: null,
   },
   asteroid_medium: {
     id: 'asteroid_medium', name: 'Asteroid', tier: 1, hp: 44, radius: 26,
-    speed: [40, 85], vrot: [-0.9, 0.9], contactDamage: 28, score: 25, gold: 2,
+    speed: [40, 85], vrot: [-0.9, 0.9], contactDamage: 45, score: 25, gold: 2,
     ai: 'drift', color: 'enemy', render: 'asteroid', glow: 0,
     split: { count: 2, child: 'asteroid_small' },
   },
   asteroid_large: {
     id: 'asteroid_large', name: 'Large Asteroid', tier: 2, hp: 100, radius: 44,
-    speed: [22, 55], vrot: [-0.5, 0.5], contactDamage: 45, score: 60, gold: 4,
+    speed: [22, 55], vrot: [-0.5, 0.5], contactDamage: 70, score: 60, gold: 4,
     ai: 'drift', color: 'enemy', render: 'asteroid', glow: 0,
     split: { count: 2, child: 'asteroid_medium' },
   },
   asteroid_elite: {
     id: 'asteroid_elite', name: 'Elite Asteroid', tier: 3, hp: 320, radius: 52,
-    speed: [18, 30], vrot: [-0.4, 0.4], contactDamage: 60, score: 220, gold: 16,
+    speed: [18, 30], vrot: [-0.4, 0.4], contactDamage: 90, score: 220, gold: 16,
     ai: 'drift', color: 'elite', render: 'asteroid', glow: 1,
     split: { count: 3, child: 'asteroid_medium' }, chestChance: 0.25,
   },
