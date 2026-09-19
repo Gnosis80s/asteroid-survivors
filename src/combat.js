@@ -184,7 +184,6 @@ export function spawnGem(game, x, y, value, big = false) {
     game.world.get(id, 'pickup').big = true;
     const r = game.world.get(id, 'render');
     r.color = 'bigGem';
-    r.glow = 2;
   }
   return id;
 }

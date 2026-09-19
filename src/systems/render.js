@@ -152,17 +152,12 @@ export function renderWorld(game, r) {
     if (p.kind === 'gem') {
       const pts = rotPoints([[0, -s], [s, 0], [0, s], [-s, 0]], t.rot)
         .map(([x, y]) => [x + t.x, y + t.y]);
-      r.polygon(pts, { color: rd.color, width: 1, fill: true, alpha: 0.95, glow: rd.glow });
-      if (p.big) {
-        const inner = rotPoints([[0, -s * 0.4], [s * 0.4, 0], [0, s * 0.4], [-s * 0.4, 0]], t.rot)
-          .map(([x, y]) => [x + t.x, y + t.y]);
-        r.polygon(inner, { color: 'white', width: 1, fill: true, alpha: 0.7 });
-      }
+      r.polygon(pts, { color: rd.color, width: 1.5, alpha: 0.95, glow: rd.glow });
     } else if (p.kind === 'heart') {
       r.circle(t.x, t.y, s, { color: 'heart', width: 2, fill: true, alpha: 0.95, glow: 1 });
     } else if (p.kind === 'magnet') {
-      r.circle(t.x, t.y, s, { color: 'vacuum', width: 2, fill: true, alpha: 0.95, glow: 2 });
-      r.circle(t.x, t.y, s * 0.45, { color: 'white', width: 1, fill: true, alpha: 0.8 });
+      r.circle(t.x, t.y, s, { color: 'vacuum', width: 2, alpha: 0.95, glow: 2 });
+      r.circle(t.x, t.y, s * 0.45, { color: 'white', width: 1, alpha: 0.8 });
     } else {
       const hex = [];
       for (let i = 0; i < 6; i++) {
