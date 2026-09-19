@@ -8,6 +8,7 @@ import {
 } from '../combat.js';
 
 const dmg = (base, level) => base * (1 + (level - 1) * 0.28);
+const shots = (base, level) => base + (level >= 3 ? 1 : 0) + (level >= 5 ? 1 : 0);
 
 // Nearest enemy within maxDist of (x,y), skipping any in `exclude`.
 function nearestInRange(world, x, y, maxDist, exclude) {
@@ -343,3 +344,26 @@ export const WEAPONS = [
 ];
 
 export const WEAPON_MAP = Object.fromEntries(WEAPONS.map((w) => [w.id, w]));
+
+const WEAPON_TEXT = {
+  machineGun: (l) => `${shots(1, l)} shots · ${Math.round(dmg(8, l))} dmg each`,
+  gatling: (l) => `${shots(1, l)} shots · ${Math.round(dmg(9, l))} dmg · pierces 1`,
+  blaster: (l) => `1 shot · ${Math.round(dmg(26, l))} dmg · pierces ${2 + (l >= 3 ? 1 : 0) + (l >= 5 ? 1 : 0)}`,
+  railgun: (l) => `1 shot · ${Math.round(dmg(32, l))} dmg · full pierce`,
+  spreadShot: (l) => `${shots(3, l)} shots · ${Math.round(dmg(7, l))} dmg each`,
+  vulcanFan: (l) => `${shots(5, l)} shots · ${Math.round(dmg(6, l))} dmg · split on hit`,
+  orbitalShields: (l) => `${shots(2, l)} orbs · ${Math.round(dmg(11, l))} dmg contact`,
+  titanRings: (l) => `${6 + (l - 1) * 2} orbs · ${Math.round(dmg(13, l))} dmg contact`,
+  homingMissiles: (l) => `${shots(1, l)} missiles · ${Math.round(dmg(16, l))} dmg each`,
+  swarm: (l) => `${shots(2, l)} missiles · ${Math.round(dmg(13, l))} dmg · fragments`,
+  laserBeam: (l) => `piercing beam · ${Math.round(dmg(20, l))} dmg`,
+  doomRay: (l) => `sweeping beam · ${Math.round(dmg(22, l))} dmg`,
+  mineLayer: (l) => `mine · ${Math.round(dmg(42, l))} dmg`,
+  minefield: (l) => `mine · ${Math.round(dmg(46, l))} dmg · chain`,
+  plasmaAura: (l) => `aura · ${Math.round(dmg(10, l))} dmg / tick`,
+  arcCoil: (l) => `${3 + (l >= 3 ? 1 : 0) + (l >= 5 ? 1 : 0)} chains · ${Math.round(dmg(14, l))} dmg`,
+};
+
+export function weaponText(id) {
+  return WEAPON_TEXT[id] || null;
+}

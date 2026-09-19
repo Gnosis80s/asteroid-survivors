@@ -6,7 +6,7 @@ import { Renderer } from './engine/renderer.js';
 import { Input } from './engine/input.js';
 import { Audio } from './engine/audio.js';
 import { createGame } from './state.js';
-import { loadSave, persistSave } from './save.js';
+import { loadSave, persistSave, loadSettings } from './save.js';
 
 import { updatePlayerControl } from './systems/playerControl.js';
 import { updateMovement } from './systems/movement.js';
@@ -33,6 +33,7 @@ game.save = save;
 game.meta = save.meta;
 game.gold = save.gold;
 game.selectedCharId = save.unlocked[0] || 'voyager';
+game.settings = loadSettings();
 game.paused = false;
 game.debug = false;
 

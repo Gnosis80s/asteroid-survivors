@@ -4,7 +4,7 @@
 import { CONFIG } from '../config.js';
 import { startRun, applyCard, generateOffers } from '../state.js';
 import { resolveCard, closeChest } from './leveling.js';
-import { persistSave, defaultSave } from '../save.js';
+import { persistSave, defaultSave, persistSettings } from '../save.js';
 import { drawGlyph } from '../data/glyphs.js';
 import { WEAPON_MAP } from '../data/weapons.js';
 import { PASSIVE_MAP } from '../data/passives.js';
@@ -131,8 +131,20 @@ function drawCard(r, card, rect, selected, hover) {
 
   const desc = wrapText(card.desc, 24);
   desc.forEach((line, i) => {
-    r.text(line, x + w / 2, y + 214 + i * 18, { size: 13, color: 'ui', align: 'center' });
+    r.text(line, x + w / 2, y + 206 + i * 18, { size: 13, color: 'ui', align: 'center' });
   });
+
+  if (card.text && card.kind !== 'evolution') {
+    const lvl = card.level;
+    if (lvl === 0) {
+      r.text(`GAIN  ${card.text(1)}`, x + w / 2, y + 250, { size: 12, color: 'gem', align: 'center' });
+    } else {
+      r.text(`NOW  ${card.text(lvl)}`, x + w / 2, y + 250, { size: 12, color: 'ui', align: 'center' });
+      if (lvl < card.maxLevel) {
+        r.text(`NEXT  ${card.text(lvl + 1)}`, x + w / 2, y + 268, { size: 12, color: 'gem', align: 'center' });
+      }
+    }
+  }
 
   if (card.level === 0 && card.kind !== 'evolution') {
     r.text('NEW', x + w / 2, y + h - 20, { size: 14, color: 'gem', align: 'center' });
@@ -634,8 +646,9 @@ export function updateQuitConfirm(game, dt) {
 function optionsButtons() {
   const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
   return [
-    { x: W / 2 - 160, y: H / 2 - 30, w: 320, h: 56 },
-    { x: W / 2 - 160, y: H / 2 + 40, w: 320, h: 56 },
+    { x: W / 2 - 200, y: H / 2 - 76, w: 400, h: 50 },
+    { x: W / 2 - 200, y: H / 2 - 16, w: 400, h: 50 },
+    { x: W / 2 - 200, y: H / 2 + 44, w: 400, h: 50 },
   ];
 }
 
@@ -671,10 +684,12 @@ export function renderOptions(game, r) {
     drawButton(r, btns[0], 'YES', game.optionsSel === 0, inRect(mx, my, btns[0]));
     drawButton(r, btns[1], 'NO', game.optionsSel === 1, inRect(mx, my, btns[1]));
   } else {
-    r.text(`Credits ${game.gold}  ·  Runs ${game.save.runs}  ·  Best ${formatTime(game.save.bestTime)}`, W / 2, H / 2 - 120, { size: 13, color: 'uiDim', align: 'center' });
+    r.text(`Credits ${game.gold}  ·  Runs ${game.save.runs}  ·  Best ${formatTime(game.save.bestTime)}`, W / 2, H / 2 - 130, { size: 13, color: 'uiDim', align: 'center' });
     const btns = optionsButtons();
-    drawButton(r, btns[0], 'RESET PROGRESS', game.optionsSel === 0, inRect(mx, my, btns[0]));
-    drawButton(r, btns[1], 'BACK', game.optionsSel === 1, inRect(mx, my, btns[1]));
+    const wrapOn = game.settings.wrap !== false;
+    drawButton(r, btns[0], `SCREEN WRAP: ${wrapOn ? 'ON' : 'OFF'}`, game.optionsSel === 0, inRect(mx, my, btns[0]));
+    drawButton(r, btns[1], 'RESET PROGRESS', game.optionsSel === 1, inRect(mx, my, btns[1]));
+    drawButton(r, btns[2], 'BACK', game.optionsSel === 2, inRect(mx, my, btns[2]));
   }
   r.text('← → select · ENTER confirm · ESC back', W / 2, H - 30, { size: 12, color: 'uiDim', align: 'center' });
 }
@@ -713,7 +728,13 @@ export function updateOptions(game, dt) {
   if (chosen < 0) return;
 
   if (!game.confirmReset) {
-    if (chosen === 0) game.confirmReset = true;
+    if (chosen === 0) {
+      game.settings.wrap = game.settings.wrap === false;
+      persistSettings(game.settings);
+      game.audio?.select?.();
+      return;
+    }
+    if (chosen === 1) game.confirmReset = true;
     else game.state = 'menu';
   } else {
     if (chosen === 0) doReset(game);

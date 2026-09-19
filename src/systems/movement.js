@@ -7,6 +7,7 @@ import { wrapX, wrapY } from '../engine/math.js';
 
 export function updateMovement(game, dt) {
   const world = game.world;
+  const wrapEnabled = game.settings ? game.settings.wrap !== false : true;
 
   for (const id of world.query('transform', 'motion')) {
     const t = world.get(id, 'transform');
@@ -20,8 +21,15 @@ export function updateMovement(game, dt) {
     t.y += m.vy * dt;
     t.rot += (m.vrot || 0) * dt;
     if (m.wrap) {
-      t.x = wrapX(t.x, CONFIG.WIDTH);
-      t.y = wrapY(t.y, CONFIG.HEIGHT);
+      if (wrapEnabled) {
+        t.x = wrapX(t.x, CONFIG.WIDTH);
+        t.y = wrapY(t.y, CONFIG.HEIGHT);
+      } else {
+        if (t.x < 0) { t.x = 0; m.vx = Math.abs(m.vx); }
+        else if (t.x > CONFIG.WIDTH) { t.x = CONFIG.WIDTH; m.vx = -Math.abs(m.vx); }
+        if (t.y < 0) { t.y = 0; m.vy = Math.abs(m.vy); }
+        else if (t.y > CONFIG.HEIGHT) { t.y = CONFIG.HEIGHT; m.vy = -Math.abs(m.vy); }
+      }
     }
   }
 

@@ -4,7 +4,7 @@
 
 import { CONFIG } from './config.js';
 import { World } from './engine/ecs.js';
-import { WEAPONS, WEAPON_MAP } from './data/weapons.js';
+import { WEAPONS, WEAPON_MAP, weaponText } from './data/weapons.js';
 import { PASSIVES, PASSIVE_MAP } from './data/passives.js';
 import { weightedPick } from './engine/math.js';
 
@@ -49,6 +49,7 @@ export function createGame() {
     runCredits: 0,
     optionsSel: 0,
     confirmReset: false,
+    settings: { wrap: true },
     onDeath: null, onVictory: null, onBossKilled: null, onRevive: null, onChest: null, onQuit: null,
   };
 }
@@ -157,9 +158,10 @@ export function startRun(game) {
 // ---------------- upgrade cards ----------------
 
 function card(type, def, level) {
+  const text = type === 'weapon' ? weaponText(def.id) : (def.text || null);
   return {
     kind: type, id: def.id, name: def.name, glyph: def.glyph,
-    rarity: def.rarity, desc: def.desc, level, maxLevel: def.maxLevel || 5, type,
+    rarity: def.rarity, desc: def.desc, level, maxLevel: def.maxLevel || 5, type, text,
   };
 }
 
@@ -274,13 +276,13 @@ function randomOwnedUpgrade(game) {
   for (const [wid, lvl] of game.build.weapons) {
     if (lvl < 5) {
       const def = WEAPON_MAP[wid];
-      pool.push({ kind: 'weapon', id: wid, name: def.name, glyph: def.glyph, rarity: def.rarity, level: lvl, maxLevel: 5, type: 'weapon' });
+      pool.push({ kind: 'weapon', id: wid, name: def.name, glyph: def.glyph, rarity: def.rarity, level: lvl, maxLevel: 5, type: 'weapon', text: weaponText(wid) });
     }
   }
   for (const [pid, lvl] of game.build.passives) {
     const def = PASSIVE_MAP[pid];
     if (lvl < (def.maxLevel || 5)) {
-      pool.push({ kind: 'passive', id: pid, name: def.name, glyph: def.glyph, rarity: def.rarity, level: lvl, maxLevel: def.maxLevel || 5, type: 'passive' });
+      pool.push({ kind: 'passive', id: pid, name: def.name, glyph: def.glyph, rarity: def.rarity, level: lvl, maxLevel: def.maxLevel || 5, type: 'passive', text: def.text || null });
     }
   }
   if (pool.length === 0) return null;

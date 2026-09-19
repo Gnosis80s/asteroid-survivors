@@ -74,20 +74,60 @@ function drawAsteroid(r, t, render, alpha) {
   });
 }
 
-function drawSaucer(r, t, render, alpha) {
+function drawSaucer(r, t, render, alpha, enemyType) {
   const size = render.size;
-  const body = [];
-  for (let i = 0; i <= 16; i++) {
-    const a = (i / 16) * TAU;
-    body.push([Math.cos(a) * size, Math.sin(a) * size * 0.42]);
-  }
-  const pts = rotPoints(body, t.rot).map(([x, y]) => [x + t.x, y + t.y]);
+  const color = render.color;
+  const glow = render.glow || 0;
+
+  const ellipse = (rx, ry) => {
+    const pts = [];
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * TAU;
+      pts.push([Math.cos(a) * rx, Math.sin(a) * ry]);
+    }
+    return pts;
+  };
+
+  const body = ellipse(size, size * 0.42);
+  const cockpit = ellipse(size * 0.5, size * 0.21);
+
   drawWrapped(t.x, t.y, size, (x, y) => {
-    const off = pts.map(([px, py]) => [px + (x - t.x), py + (y - t.y)]);
-    r.polygon(off, { color: render.color, width: 2, alpha, glow: render.glow || 0 });
-    const dome = rotPoints([[0, 0], [size * 0.5, 0], [0, -size * 0.5]], t.rot)
-      .map(([px, py]) => [px + x, py + y]);
-    r.polygon(dome, { color: render.color, width: 2, alpha, glow: 0 });
+    const L = (lx, ly) => {
+      const c = Math.cos(t.rot), s = Math.sin(t.rot);
+      return [x + lx * c - ly * s, y + lx * s + ly * c];
+    };
+    const LP = (pts) => rotPoints(pts, t.rot).map(([px, py]) => [px + x, py + y]);
+
+    // Body + cockpit.
+    r.polygon(LP(body), { color, width: 2, alpha, glow });
+    r.polygon(LP(cockpit), { color, width: 1.5, alpha: alpha * 0.9 });
+
+    if (enemyType === 'saucer_gunner' || enemyType === 'boss_warden') {
+      // Forward cannon + muzzle.
+      const a = L(size * 0.25, 0);
+      const b = L(size * 1.3, 0);
+      r.line(a[0], a[1], b[0], b[1], { color, width: 2, alpha });
+      r.circle(b[0], b[1], 1.5, { color, width: 1, alpha });
+    }
+
+    if (enemyType === 'saucer_gunner') {
+      // Side wing guns.
+      const l1 = L(-size * 0.1, -size * 0.42);
+      const l2 = L(-size * 0.1, -size * 0.92);
+      const r1 = L(-size * 0.1, size * 0.42);
+      const r2 = L(-size * 0.1, size * 0.92);
+      r.line(l1[0], l1[1], l2[0], l2[1], { color, width: 2, alpha });
+      r.line(r1[0], r1[1], r2[0], r2[1], { color, width: 2, alpha });
+    }
+
+    if (enemyType === 'boss_warden') {
+      // Inner ring + turret emplacements.
+      r.polygon(LP(ellipse(size * 0.68, size * 0.28)), { color, width: 1.5, alpha: alpha * 0.7 });
+      for (const a of [-2.4, -0.8, 0.8, 2.4]) {
+        const tp = L(Math.cos(a) * size * 0.85, Math.sin(a) * size * 0.42 * 0.85);
+        r.circle(tp[0], tp[1], 2.2, { color, width: 1.5, alpha });
+      }
+    }
   });
 }
 
@@ -173,12 +213,13 @@ export function renderWorld(game, r) {
   for (const id of world.query('enemy', 'transform')) {
     const t = world.get(id, 'transform');
     const render = world.get(id, 'render');
+    const enemy = world.get(id, 'enemy');
     const dx = t.x - playerX, dy = t.y - playerY;
     const d = Math.hypot(dx, dy);
     let alpha = 1;
     if (d > focus) alpha = Math.max(0.3, 1 - (d - focus) / 900);
     if (render.type === 'asteroid' || render.type === 'boss') drawAsteroid(r, t, render, alpha);
-    else if (render.type === 'saucer') drawSaucer(r, t, render, alpha);
+    else if (render.type === 'saucer') drawSaucer(r, t, render, alpha, enemy.type);
     else if (render.type === 'shard') drawShard(r, t, render, alpha);
   }
 
