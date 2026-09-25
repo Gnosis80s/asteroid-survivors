@@ -53,10 +53,10 @@ const SETTINGS_KEY = 'asteroidSurvivors.settings.v1';
 export function loadSettings() {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return { wrap: true };
-    return { wrap: true, ...JSON.parse(raw) };
+    if (!raw) return { minimap: true };
+    return { minimap: true, ...JSON.parse(raw) };
   } catch {
-    return { wrap: true };
+    return { minimap: true };
   }
 }
 

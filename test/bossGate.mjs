@@ -6,6 +6,8 @@ import { createGame, startRun } from '../src/state.js';
 import { defaultSave } from '../src/save.js';
 import { spawnEnemy, killEnemy } from '../src/combat.js';
 import { updateWaveDirector } from '../src/systems/waveDirector.js';
+import { updateEnemyAI } from '../src/systems/enemyAI.js';
+import { updateMovement } from '../src/systems/movement.js';
 
 const game = createGame();
 game.input = { isDown: () => false, justPressed: () => false, mouse: { x: 0, y: 0, pressed: false } };
@@ -26,7 +28,17 @@ const check = (cond, msg) => {
 game.time = 300;
 updateWaveDirector(game, CONFIG.FIXED_DT);
 const bossId = game.bossAlive;
-check(bossId >= 0, 'colossus spawned');
+const boss = game.world.get(bossId, 'enemy');
+const bossRender = game.world.get(bossId, 'render');
+check(bossId >= 0, 'first boss spawned');
+check(!!boss && boss.name === 'The Hive', 'first boss is the Hive alien ship');
+check(!!bossRender && bossRender.type === 'alienShip', 'first boss uses the alien ship render type');
+check(!!game.banner && game.banner.alert === true, 'first boss announcement uses alert layout');
+for (let i = 0; i < 100; i++) {
+  updateMovement(game, CONFIG.FIXED_DT);
+  updateEnemyAI(game, CONFIG.FIXED_DT);
+}
+check(game.world.count('enemyBullet') > 0, 'Hive fires a distinct enemy pattern');
 const atSpawn = game.world.count('enemy');
 
 // Simulate ~30 director ticks (many seconds) while the boss is alive.
@@ -35,6 +47,7 @@ check(game.world.count('enemy') === atSpawn, `no asteroids spawned while boss al
 
 // Kill the boss; spawning should resume.
 killEnemy(game, bossId);
+check(game.shake >= 20 && game.hitStop >= 0.12, 'boss death uses the shared impact');
 const afterKill = game.world.count('enemy');
 const resumed = [];
 for (let i = 0; i < 200; i++) {

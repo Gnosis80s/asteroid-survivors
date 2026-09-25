@@ -135,6 +135,10 @@ export class Audio {
     src.stop(t0 + dur);
   }
   mineArm() { this._tone(1200, 0.04, 'square', 0.02); }
+  blaster() { this._tone(160, 0.12, 'sawtooth', 0.045, 70); this._noise(0.08, 0.025); }
+  railgun() { this._tone(1500, 0.07, 'square', 0.035, 180); this._noise(0.06, 0.035); }
+  mineDeploy() { this._tone(200, 0.1, 'triangle', 0.03, 90); }
+  zap() { this._noise(0.09, 0.04); this._tone(900, 0.06, 'sawtooth', 0.03, 300); }
   chestOpen() {
     [523, 659, 784, 1047, 1319].forEach((f, i) => this._tone(f, 0.16, 'square', 0.035, null, i * 0.08));
     this._tone(1568, 0.5, 'triangle', 0.035, null, 5 * 0.08);

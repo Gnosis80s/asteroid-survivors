@@ -33,12 +33,40 @@ function updateBoss(game, id, e, t, m, dt, ship) {
   const st = e.state;
   st.phaseTimer = (st.phaseTimer ?? 0) - dt;
 
-  if (e.ai === 'boss_colossus') {
-    if (st.phaseTimer <= 0) {
-      st.phaseTimer = 2.4;
-      st.ringOffset = (st.ringOffset ?? 0) + 0.5;
-      fireRing(game, t.x, t.y, 8, 150, st.ringOffset);
+  if (e.ai === 'boss_alien') {
+    const targetAngle = angleTo(t.x, t.y, ship.x, ship.y);
+    const currentAngle = Math.atan2(m.vy, m.vx);
+    let delta = targetAngle - currentAngle;
+    while (delta > Math.PI) delta -= TAU;
+    while (delta < -Math.PI) delta += TAU;
+    const turn = Math.max(-1.2 * dt, Math.min(1.2 * dt, delta));
+    const speed = Math.hypot(m.vx, m.vy);
+    const nextAngle = currentAngle + turn;
+    m.vx = Math.cos(nextAngle) * speed;
+    m.vy = Math.sin(nextAngle) * speed;
+
+    st.aimTimer = (st.aimTimer ?? 0) - dt;
+    st.ringTimer = (st.ringTimer ?? 0) - dt;
+    st.spawnTimer = (st.spawnTimer ?? 5) - dt;
+    if (st.aimTimer <= 0) {
+      st.aimTimer = 1.8;
+      fireAimed(game, t.x, t.y, 210, 3, 0.34);
       game.audio?.laser?.();
+    }
+    if (st.ringTimer <= 0) {
+      st.ringTimer = 3.8;
+      st.ringOffset = (st.ringOffset ?? 0) + 0.35;
+      fireRing(game, t.x, t.y, 10, 180, st.ringOffset);
+      game.audio?.laser?.();
+    }
+    if (st.spawnTimer <= 0) {
+      st.spawnTimer = 7;
+      if (game.world.count('enemy') < CONFIG.waves.maxEnemies) {
+        for (let i = 0; i < 2; i++) {
+          const a = rand(0, TAU);
+          spawnEnemy(game, 'saucer_scout', t.x + Math.cos(a) * 120, t.y + Math.sin(a) * 120);
+        }
+      }
     }
   } else if (e.ai === 'boss_mothership') {
     if (st.phaseTimer <= 0) {

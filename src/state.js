@@ -7,6 +7,7 @@ import { World } from './engine/ecs.js';
 import { WEAPONS, WEAPON_MAP, weaponText } from './data/weapons.js';
 import { PASSIVES, PASSIVE_MAP } from './data/passives.js';
 import { weightedPick } from './engine/math.js';
+import { initObjective } from './systems/objectives.js';
 
 const EVOLVED_IDS = new Set(WEAPONS.filter((w) => w.evolve).map((w) => w.evolve.into));
 const UNION_IDS = new Set(WEAPONS.filter((w) => w.unionFrom).map((w) => w.id));
@@ -50,7 +51,11 @@ export function createGame() {
     runCredits: 0,
     optionsSel: 0,
     confirmReset: false,
-    settings: { wrap: true },
+    settings: { minimap: true },
+    menuSel: -1,
+    hitStop: 0,
+    camera: { x: 0, y: 0 },
+    objective: null,
     onDeath: null, onVictory: null, onBossKilled: null, onRevive: null, onChest: null, onQuit: null,
   };
 }
@@ -128,20 +133,31 @@ export function startRun(game) {
   game.evoFlash = 0;
   game.newBest = null;
   game.runCredits = 0;
+  game.hitStop = 0;
 
   recomputeStats(game);
   game.hp = game.stats.maxHp;
 
-  // Player ship.
+  // Player ship (spawns in the middle of the world).
   const pid = w.create();
-  w.add(pid, 'transform', { x: CONFIG.WIDTH / 2, y: CONFIG.HEIGHT / 2, rot: -Math.PI / 2 });
-  w.add(pid, 'motion', { vx: 0, vy: 0, vrot: 0, wrap: true });
+  const spawnX = CONFIG.world.width / 2;
+  const spawnY = CONFIG.world.height / 2;
+  w.add(pid, 'transform', { x: spawnX, y: spawnY, rot: -Math.PI / 2 });
+  w.add(pid, 'motion', { vx: 0, vy: 0, vrot: 0 });
   w.add(pid, 'collider', { radius: CONFIG.player.radius });
   w.add(pid, 'player', {});
   w.add(pid, 'render', { type: 'ship', color: game.char.color, size: CONFIG.player.radius, glow: 1 });
   game.playerId = pid;
 
+  // Center the camera on the player.
+  game.camera.x = spawnX - CONFIG.WIDTH / 2;
+  game.camera.y = spawnY - CONFIG.HEIGHT / 2;
+
   giveWeapon(game, game.char.starter);
+
+  // Scatter the collectible salvage pods for this run.
+  game.objective = null;
+  initObjective(game);
 
   // Extra starting weapons from meta progression.
   const extras = game.meta.startWeapon || 0;
@@ -196,6 +212,7 @@ function buildCardPool(game) {
   // Unions: two maxed weapons fuse into one.
   for (const wdef of WEAPONS) {
     if (!wdef.unionFrom) continue;
+    if (game.build.banished.has(wdef.id)) continue;
     const [a, b] = wdef.unionFrom;
     if ((game.build.weapons.get(a) || 0) >= 5 && (game.build.weapons.get(b) || 0) >= 5) {
       cards.push({
@@ -310,6 +327,7 @@ function findEvolvable(game) {
 function findUnionable(game) {
   for (const wdef of WEAPONS) {
     if (!wdef.unionFrom) continue;
+    if (game.build.banished.has(wdef.id)) continue;
     const [a, b] = wdef.unionFrom;
     if ((game.build.weapons.get(a) || 0) >= 5 && (game.build.weapons.get(b) || 0) >= 5) {
       return wdef;
@@ -369,6 +387,7 @@ export function generateChestRewards(game) {
     if (u) rewards.push(u);
   }
 
-  const gold = [0, 50, 150, 300][tier] || 50;
+  // Gold scales with chest tier (1/3/5 items -> 50/150/300).
+  const gold = { 1: 50, 3: 150, 5: 300 }[tier] ?? 50;
   return { rewards, gold, tier, silver };
 }

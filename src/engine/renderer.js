@@ -26,6 +26,8 @@ export class Renderer {
     this.height = height;
     this.shakeX = 0;
     this.shakeY = 0;
+    this.camX = 0;
+    this.camY = 0;
     this._rgbCache = new Map();
     this._bloom = null;
     this._bloomCtx = null;
@@ -53,11 +55,27 @@ export class Renderer {
     this.shakeY = y;
   }
 
+  // World-space camera (top-left of the visible region in world coords).
+  // Applied as a negative translate so world entities are drawn in world coords
+  // while the canvas stays a viewport onto the larger world.
+  setCamera(x, y) {
+    this.camX = x;
+    this.camY = y;
+  }
+
   begin() {
     const ctx = this.ctx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = PALETTE.bg;
     ctx.fillRect(0, 0, this.width, this.height);
+    ctx.translate(this.shakeX, this.shakeY);
+    ctx.translate(-this.camX, -this.camY);
+  }
+
+  // Return to screen space (for HUD/UI drawn after the world pass).
+  screen() {
+    const ctx = this.ctx;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.translate(this.shakeX, this.shakeY);
   }
 

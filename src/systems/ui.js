@@ -47,6 +47,29 @@ function metaSellRect(rect) {
 
 // ---------------- HUD ----------------
 
+// Radar in the corner: world outline, active beacon, current view rectangle
+// and the player dot.
+function drawMinimap(game, r) {
+  const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+  const mw = 150;
+  const mh = mw * (CONFIG.world.height / CONFIG.world.width);
+  const x0 = W - 16 - mw, y0 = H - 16 - mh;
+  r.rect(x0, y0, mw, mh, { color: 'bg', alpha: 0.4 });
+  strokeRect(r, x0, y0, mw, mh, { color: 'uiDim', width: 1, alpha: 0.8 });
+  const mx = (wx) => x0 + (wx / CONFIG.world.width) * mw;
+  const my = (wy) => y0 + (wy / CONFIG.world.height) * mh;
+
+  const obj = game.objective;
+  const live = obj?.parts[obj.liveIndex];
+  if (live && !live.destroyed && live.id >= 0) r.circle(mx(live.x), my(live.y), 3.5, { color: 'chest', width: 1.5, fill: true, glow: 1 });
+
+  const cam = game.camera || { x: 0, y: 0 };
+  strokeRect(r, mx(cam.x), my(cam.y), (CONFIG.WIDTH / CONFIG.world.width) * mw, (CONFIG.HEIGHT / CONFIG.world.height) * mh, { color: 'white', width: 1, alpha: 0.9 });
+
+  const pt = game.world.get(game.playerId, 'transform');
+  if (pt) r.circle(mx(pt.x), my(pt.y), 2.5, { color: 'playerBullet', width: 2 });
+}
+
 export function renderHUD(game, r) {
   const W = CONFIG.WIDTH;
   const stats = game.stats;
@@ -59,6 +82,27 @@ export function renderHUD(game, r) {
   r.text(`${Math.ceil(game.hp)}/${stats.maxHp}`, hpx + hpW / 2, hpy + hpH / 2, { size: 11, color: 'white', align: 'center' });
 
   r.text(formatTime(game.time), W / 2, 26, { size: 28, color: 'ui', align: 'center' });
+
+  const obj = game.objective;
+  const part = obj?.parts[obj.liveIndex];
+  const beaconActive = !!(part && !part.destroyed && part.id >= 0 && game.world.get(part.id, 'objective'));
+  if (obj && beaconActive) {
+    const seconds = Math.max(0, Math.ceil(obj.timer));
+    const fraction = clamp(obj.timer / CONFIG.objective.timer, 0, 1);
+    const color = fraction <= 0.25 ? 'enemyBullet' : 'chest';
+    const barW = 440;
+    const barH = 12;
+    const barX = W / 2 - barW / 2;
+    const barY = 62;
+    r.text(`FIND AND DESTROY ENEMY BEACON  ·  ${seconds}s`, W / 2, 50, { size: 15, color, align: 'center' });
+    r.rect(barX, barY, barW, barH, { color: 'bg', alpha: 0.9 });
+    if (fraction > 0) r.rect(barX + 2, barY + 2, (barW - 4) * fraction, barH - 4, { color, alpha: 0.95, glow: 1 });
+    strokeRect(r, barX, barY, barW, barH, { color, width: 1.5, alpha: 0.95 });
+    r.text(`MISSES ${obj.misses}`, barX, barY + 28, { size: 11, color: 'uiDim', align: 'left' });
+    r.text(`DESTROYED ${obj.found}`, barX + barW, barY + 28, { size: 11, color: 'uiDim', align: 'right' });
+  }
+
+  if (game.settings.minimap !== false) drawMinimap(game, r);
 
   let wy = 24;
   for (const [wid, lvl] of game.build.weapons) {
@@ -84,8 +128,8 @@ export function renderHUD(game, r) {
   if (game.bossAlive >= 0) {
     const e = game.world.get(game.bossAlive, 'enemy');
     if (e) {
-      const bw = 420, bx = W / 2 - bw / 2, by = 40;
-      r.text(e.type.replace(/_/g, ' ').toUpperCase(), W / 2, by + 8, { size: 12, color: 'boss', align: 'center' });
+      const bw = 420, bx = W / 2 - bw / 2, by = 104;
+      r.text((e.name || e.type.replace(/_/g, ' ')).toUpperCase(), W / 2, by + 8, { size: 12, color: 'boss', align: 'center' });
       strokeRect(r, bx, by + 14, bw, 8, { color: 'uiDim', width: 1 });
       r.rect(bx + 1, by + 15, (bw - 2) * clamp(e.hp / e.maxHp, 0, 1), 6, { color: 'boss', alpha: 0.9 });
     }
@@ -93,7 +137,8 @@ export function renderHUD(game, r) {
 
   if (game.banner && game.banner.ttl > 0) {
     const a = clamp(game.banner.ttl, 0, 1);
-    r.text(game.banner.text, W / 2, CONFIG.HEIGHT * 0.3, { size: 34, color: 'boss', alpha: a, align: 'center' });
+    const alert = game.banner.alert;
+    r.text(game.banner.text, W / 2, CONFIG.HEIGHT * (alert ? 0.22 : 0.3), { size: alert ? 24 : 34, color: 'boss', alpha: a, align: 'center' });
   }
 }
 
@@ -266,6 +311,72 @@ function menuLayout() {
   return { chars, metas, start, options };
 }
 
+// Ordered list of selectable menu elements (for keyboard navigation).
+function menuItems() {
+  const layout = menuLayout();
+  const items = [{ kind: 'options', rect: layout.options }];
+  for (let i = 0; i < layout.chars.length; i++) items.push({ kind: 'char', idx: i, rect: layout.chars[i].rect });
+  for (let i = 0; i < layout.metas.length; i++) items.push({ kind: 'meta', idx: i, rect: layout.metas[i].rect });
+  items.push({ kind: 'start', rect: layout.start });
+  return items;
+}
+
+function selectChar(game, i) {
+  const c = CONFIG.characters[i];
+  if (game.save.unlocked.includes(c.id)) {
+    game.selectedCharId = c.id;
+    game.audio?.select?.();
+  } else if (game.gold >= c.cost) {
+    game.gold -= c.cost;
+    game.save.gold = game.gold;
+    game.save.unlocked.push(c.id);
+    game.selectedCharId = c.id;
+    persistSave(game.save);
+    game.audio?.levelup?.();
+  }
+}
+
+function buyMeta(game, i) {
+  const m = CONFIG.meta.upgrades[i];
+  const lvl = game.save.meta[m.id] || 0;
+  if (lvl >= m.max) return;
+  const cost = Math.floor(m.cost * Math.pow(m.costGrowth, lvl));
+  if (game.gold >= cost) {
+    game.gold -= cost;
+    game.save.gold = game.gold;
+    game.save.meta[m.id] = lvl + 1;
+    persistSave(game.save);
+    game.audio?.select?.();
+  }
+}
+
+function sellMeta(game, i) {
+  const m = CONFIG.meta.upgrades[i];
+  const lvl = game.save.meta[m.id] || 0;
+  if (lvl <= 0) return;
+  const refund = Math.floor(m.cost * Math.pow(m.costGrowth, lvl - 1));
+  game.gold += refund;
+  game.save.gold = game.gold;
+  game.save.meta[m.id] = lvl - 1;
+  persistSave(game.save);
+  game.audio?.select?.();
+}
+
+function activateMenuItem(game, item) {
+  if (item.kind === 'options') {
+    game.state = 'options';
+    game.optionsSel = 0;
+    game.confirmReset = false;
+    game.audio?.select?.();
+  } else if (item.kind === 'char') {
+    selectChar(game, item.idx);
+  } else if (item.kind === 'meta') {
+    buyMeta(game, item.idx);
+  } else if (item.kind === 'start') {
+    launch(game);
+  }
+}
+
 export function renderMenu(game, r) {
   const W = CONFIG.WIDTH;
   r.text('ASTEROID SURVIVORS', W / 2, 44, { size: 40, color: 'white', align: 'center' });
@@ -335,72 +446,65 @@ export function renderMenu(game, r) {
     r.text(value, cx, sy + 16, { size: 36, color, align: 'center' });
   });
 
-  r.text('W/↑ thrust · S/↓ reverse · A D rotate · Space dash · P pause · ESC quit · M mute', W / 2, CONFIG.HEIGHT - 20, { size: 12, color: 'uiDim', align: 'center' });
+  // Keyboard selection highlight.
+  const items = menuItems();
+  if (game.menuSel == null || game.menuSel < 0) game.menuSel = items.length - 1;
+  if (game.menuSel >= items.length) game.menuSel = items.length - 1;
+  const sel = items[game.menuSel];
+  strokeRect(r, sel.rect.x - 3, sel.rect.y - 3, sel.rect.w + 6, sel.rect.h + 6, { color: 'playerBullet', width: 2, alpha: 0.9 });
+
+  r.text('↑↓ / W S navigate · ENTER select · BACKSPACE sell · click for mouse', W / 2, CONFIG.HEIGHT - 20, { size: 12, color: 'uiDim', align: 'center' });
 }
 
 export function updateMenu(game, dt) {
   const input = game.input;
-  const layout = menuLayout();
+  const items = menuItems();
   const [mx, my] = mouse(game);
 
-  if (input.mouse.pressed && inRect(mx, my, layout.options)) {
-    game.state = 'options';
-    game.optionsSel = 0;
-    game.confirmReset = false;
+  if (game.menuSel == null || game.menuSel < 0) game.menuSel = items.length - 1;
+  if (game.menuSel >= items.length) game.menuSel = items.length - 1;
+
+  // Keyboard navigation.
+  if (input.justPressed('ArrowUp') || input.justPressed('KeyW')) {
+    game.menuSel = (game.menuSel - 1 + items.length) % items.length;
     game.audio?.select?.();
+  }
+  if (input.justPressed('ArrowDown') || input.justPressed('KeyS')) {
+    game.menuSel = (game.menuSel + 1) % items.length;
+    game.audio?.select?.();
+  }
+
+  // Mouse hover moves the cursor.
+  if (input.mouse.moved) {
+    for (let i = 0; i < items.length; i++) {
+      if (inRect(mx, my, items[i].rect)) { game.menuSel = i; break; }
+    }
+  }
+
+  // Activate the selected item (Enter).
+  if (input.justPressed('Enter')) {
+    activateMenuItem(game, items[game.menuSel]);
     return;
   }
 
-  for (let i = 0; i < layout.chars.length; i++) {
-    const c = CONFIG.characters[i];
-    const rect = layout.chars[i].rect;
-    if (input.mouse.pressed && inRect(mx, my, rect)) {
-      if (game.save.unlocked.includes(c.id)) {
-        game.selectedCharId = c.id;
-        game.audio?.select?.();
-      } else if (game.gold >= c.cost) {
-        game.gold -= c.cost;
-        game.save.gold = game.gold;
-        game.save.unlocked.push(c.id);
-        game.selectedCharId = c.id;
-        persistSave(game.save);
-        game.audio?.levelup?.();
+  // Mouse click (with sell-button handling for meta rows).
+  if (input.mouse.pressed) {
+    for (let i = 0; i < items.length; i++) {
+      if (inRect(mx, my, items[i].rect)) {
+        if (items[i].kind === 'meta' && inRect(mx, my, metaSellRect(items[i].rect))) {
+          sellMeta(game, items[i].idx);
+        } else {
+          activateMenuItem(game, items[i]);
+        }
+        return;
       }
     }
   }
 
-  for (let i = 0; i < layout.metas.length; i++) {
-    const m = CONFIG.meta.upgrades[i];
-    const rect = layout.metas[i].rect;
-    const lvl = game.save.meta[m.id] || 0;
-    const sellRect = metaSellRect(rect);
-
-    // Sell button (refund the last level purchased).
-    if (input.mouse.pressed && lvl > 0 && inRect(mx, my, sellRect)) {
-      const refund = Math.floor(m.cost * Math.pow(m.costGrowth, lvl - 1));
-      game.gold += refund;
-      game.save.gold = game.gold;
-      game.save.meta[m.id] = lvl - 1;
-      persistSave(game.save);
-      game.audio?.select?.();
-      continue;
-    }
-
-    // Buy (click the row, excluding the sell button).
-    if (input.mouse.pressed && lvl < m.max && inRect(mx, my, rect) && !inRect(mx, my, sellRect)) {
-      const cost = Math.floor(m.cost * Math.pow(m.costGrowth, lvl));
-      if (game.gold >= cost) {
-        game.gold -= cost;
-        game.save.gold = game.gold;
-        game.save.meta[m.id] = lvl + 1;
-        persistSave(game.save);
-        game.audio?.select?.();
-      }
-    }
-  }
-
-  if (input.justPressed('Enter') || (input.mouse.pressed && inRect(mx, my, layout.start))) {
-    launch(game);
+  // Backspace sells the selected meta upgrade.
+  if (input.justPressed('Backspace')) {
+    const item = items[game.menuSel];
+    if (item.kind === 'meta') sellMeta(game, item.idx);
   }
 }
 
@@ -688,8 +792,8 @@ export function renderOptions(game, r) {
   } else {
     r.text(`Credits ${game.gold}  ·  Runs ${game.save.runs}  ·  Best ${formatTime(game.save.bestTime)}`, W / 2, H / 2 - 130, { size: 13, color: 'uiDim', align: 'center' });
     const btns = optionsButtons();
-    const wrapOn = game.settings.wrap !== false;
-    drawButton(r, btns[0], `SCREEN WRAP: ${wrapOn ? 'ON' : 'OFF'}`, game.optionsSel === 0, inRect(mx, my, btns[0]));
+    const minimapOn = game.settings.minimap !== false;
+    drawButton(r, btns[0], `MINIMAP: ${minimapOn ? 'ON' : 'OFF'}`, game.optionsSel === 0, inRect(mx, my, btns[0]));
     drawButton(r, btns[1], 'RESET PROGRESS', game.optionsSel === 1, inRect(mx, my, btns[1]));
     drawButton(r, btns[2], 'BACK', game.optionsSel === 2, inRect(mx, my, btns[2]));
   }
@@ -731,7 +835,7 @@ export function updateOptions(game, dt) {
 
   if (!game.confirmReset) {
     if (chosen === 0) {
-      game.settings.wrap = game.settings.wrap === false;
+      game.settings.minimap = game.settings.minimap === false;
       persistSettings(game.settings);
       game.audio?.select?.();
       return;

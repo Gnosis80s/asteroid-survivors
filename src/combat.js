@@ -29,11 +29,11 @@ export function spawnEnemy(game, type, x, y) {
     vx: Math.cos(angle) * speed,
     vy: Math.sin(angle) * speed,
     vrot: rand(def.vrot[0], def.vrot[1]),
-    wrap: true,
+    bounce: true,
   });
   w.add(id, 'collider', { radius: def.radius });
   w.add(id, 'enemy', {
-    type, tier: def.tier, hp, maxHp: hp,
+    type, name: def.name, tier: def.tier, hp, maxHp: hp,
     contactDamage: def.contactDamage, score: def.score, gold: def.gold,
     ai: def.ai, state: {}, fireTimer: 0, orbCooldown: 0,
   });
@@ -51,13 +51,17 @@ export function spawnEnemy(game, type, x, y) {
 }
 
 export function randomOffscreenPos(game) {
+  // Spawn just outside the camera's current viewport, clamped to the world.
   const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+  const cam = game.camera || { x: 0, y: 0 };
   const m = 60;
   const side = randInt(0, 3);
-  if (side === 0) return [rand(-m, W + m), rand(-m, -m)];
-  if (side === 1) return [rand(-m, W + m), rand(H + m, H + m)];
-  if (side === 2) return [rand(-m, -m), rand(-m, H + m)];
-  return [rand(W + m, W + m), rand(-m, H + m)];
+  const clampX = (v) => Math.max(0, Math.min(CONFIG.world.width, v));
+  const clampY = (v) => Math.max(0, Math.min(CONFIG.world.height, v));
+  if (side === 0) return [clampX(rand(cam.x - m, cam.x + W + m)), clampY(cam.y - m)];
+  if (side === 1) return [clampX(rand(cam.x - m, cam.x + W + m)), clampY(cam.y + H + m)];
+  if (side === 2) return [clampX(cam.x - m), clampY(rand(cam.y - m, cam.y + H + m))];
+  return [clampX(cam.x + W + m), clampY(rand(cam.y - m, cam.y + H + m))];
 }
 
 // ---------- projectiles ----------
@@ -246,14 +250,41 @@ export function damageEnemy(game, id, amount) {
   if (enemy.hp <= 0) killEnemy(game, id);
 }
 
+export function damageObjective(game, id, amount) {
+  const objective = game.world.get(id, 'objective');
+  const part = game.objective?.parts[game.objective.liveIndex];
+  if (!objective || objective.hp <= 0 || !part || part.id !== id) return;
+
+  let final = amount;
+  let crit = false;
+  if (Math.random() < (game.stats?.critChance || 0)) {
+    crit = true;
+    final *= game.stats.critMult;
+  }
+  objective.hp -= final;
+  game.world.add(id, 'flash', { ttl: 0.08, color: crit ? 'boss' : 'white' });
+  const t = game.world.get(id, 'transform');
+  if (t) spawnParticle(game, { x: t.x, y: t.y, angle: 0, vx: 0, vy: 0, life: 0.12, size: 3, color: 'white', glow: 0 });
+}
+
+export function damageTarget(game, id, amount) {
+  if (game.world.has(id, 'enemy')) return damageEnemy(game, id, amount);
+  if (game.world.has(id, 'objective')) return damageObjective(game, id, amount);
+}
+
 export function killEnemy(game, id) {
   const enemy = game.world.get(id, 'enemy');
   const t = game.world.get(id, 'transform');
   if (!enemy) return;
   const def = ENEMIES[enemy.type];
   const x = t.x, y = t.y;
+  const isBoss = enemy.tier === 4 || enemy.type === 'boss_warden';
 
-  spawnExplosion(game, x, y, def.color, 16, 200, 3, 0.6);
+  spawnExplosion(game, x, y, def.color, isBoss ? 48 : 16, isBoss ? 340 : 200, isBoss ? 5 : 3, isBoss ? 0.9 : 0.6);
+  if (isBoss) {
+    game.shake = Math.max(game.shake || 0, 20);
+    game.hitStop = Math.max(game.hitStop || 0, 0.12);
+  }
 
   game.score += def.score;
   game.goldEarned += def.gold;
@@ -267,6 +298,9 @@ export function killEnemy(game, id) {
     if (def.render === 'asteroid' || def.render === 'shard') {
       dropGem(game, x, y, CONFIG.pickup.gemValue);
       if (Math.random() < CONFIG.pickup.heartChance) spawnHeart(game, x, y);
+    } else if (def.render === 'saucer') {
+      spawnGem(game, x, y, CONFIG.pickup.gemValue);
+      if (Math.random() < CONFIG.pickup.heartChance) spawnHeart(game, x, y);
     }
   }
 
@@ -278,12 +312,37 @@ export function killEnemy(game, id) {
   // Salvage pod drop (elites have a chance; sub-boss & main bosses always).
   if (def.chestChance && Math.random() < def.chestChance) spawnChest(game, x, y);
 
+  // Destroy before the boss callback so "is any boss still alive?" scans
+  // don't count the boss that was just killed.
+  game.world.destroy(id);
   if (enemy.tier === 4) {
     game.onBossKilled?.(enemy.type);
   }
-
-  game.world.destroy(id);
   game.audio?.explosion();
+}
+
+// Clear space around the player (used by revive). Regular enemies are
+// destroyed; bosses are shoved outside the safe zone instead — deleting the
+// Singularity would skip onBossKilled and make the run unwinnable.
+export function clearNearbyEnemies(game, radius = 260) {
+  const pt = game.world.get(game.playerId, 'transform');
+  if (!pt) return;
+  const r2 = radius * radius;
+  for (const id of game.world.query('enemy', 'transform')) {
+    const t = game.world.get(id, 'transform');
+    const e = game.world.get(id, 'enemy');
+    if (!t || !e) continue;
+    const dx = t.x - pt.x, dy = t.y - pt.y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 >= r2) continue;
+    if (e.tier === 4) {
+      const d = Math.sqrt(d2) || 1;
+      t.x = Math.max(40, Math.min(CONFIG.world.width - 40, pt.x + (dx / d) * (radius + 100)));
+      t.y = Math.max(40, Math.min(CONFIG.world.height - 40, pt.y + (dy / d) * (radius + 100)));
+    } else {
+      game.world.destroy(id);
+    }
+  }
 }
 
 export function damagePlayer(game, amount) {

@@ -7,6 +7,7 @@ import { Input } from './engine/input.js';
 import { Audio } from './engine/audio.js';
 import { createGame } from './state.js';
 import { loadSave, persistSave, loadSettings } from './save.js';
+import { clearNearbyEnemies } from './combat.js';
 
 import { updatePlayerControl } from './systems/playerControl.js';
 import { updateMovement } from './systems/movement.js';
@@ -15,8 +16,10 @@ import { updateEnemyAI } from './systems/enemyAI.js';
 import { updateCollision } from './systems/collision.js';
 import { updatePickups } from './systems/pickup.js';
 import { updateParticles } from './systems/particles.js';
-import { updateWaveDirector } from './systems/waveDirector.js';
+import { updateWaveDirector, findLiveBossId } from './systems/waveDirector.js';
 import { updateLeveling, openChest } from './systems/leveling.js';
+import { updateCamera } from './systems/camera.js';
+import { updateObjective } from './systems/objectives.js';
 import { renderWorld } from './systems/render.js';
 import * as ui from './systems/ui.js';
 
@@ -49,17 +52,6 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 resize();
-
-function clearNearbyEnemies(g) {
-  const pt = g.world.get(g.playerId, 'transform');
-  if (!pt) return;
-  for (const id of g.world.query('enemy', 'transform')) {
-    const t = g.world.get(id, 'transform');
-    const dx = t.x - pt.x, dy = t.y - pt.y;
-    if (dx * dx + dy * dy < 260 * 260) g.world.destroy(id);
-  }
-  g.banner = { text: 'REVIVED', ttl: 2 };
-}
 
 function finishRun(win) {
   const gold = Math.floor(game.goldEarned * game.stats.goldMult);
@@ -103,14 +95,24 @@ function quitToMenu() {
 game.onDeath = () => finishRun(false);
 game.onVictory = () => finishRun(true);
 game.onBossKilled = (type) => {
-  game.bossAlive = -1;
+  // Point the HUD boss bar at any remaining live boss (boss timers can
+  // overlap when the player is slow to kill the previous one).
+  game.bossAlive = findLiveBossId(game);
   if (type === 'boss_singularity') game.onVictory();
 };
-game.onRevive = () => clearNearbyEnemies(game);
+game.onRevive = () => {
+  clearNearbyEnemies(game);
+  game.banner = { text: 'REVIVED', ttl: 2 };
+};
 game.onChest = () => openChest(game);
 game.onQuit = () => quitToMenu();
 
 function update(dt) {
+  // Hit-stop: brief freeze for big kills.
+  if (game.hitStop > 0) {
+    game.hitStop -= dt;
+    return;
+  }
   game.shake = Math.max(0, game.shake - dt * 26);
   game.evoFlash = Math.max(0, game.evoFlash - dt * 2.5);
   if (game.banner) {
@@ -137,6 +139,7 @@ function update(dt) {
       if (game.paused) break;
       updatePlayerControl(game, dt);
       updateMovement(game, dt);
+      updateCamera(game, dt);
       updateWeapons(game, dt);
       updateEnemyAI(game, dt);
       updateCollision(game, dt);
@@ -144,6 +147,7 @@ function update(dt) {
       updateParticles(game, dt);
       updateWaveDirector(game, dt);
       updateLeveling(game, dt);
+      updateObjective(game, dt);
       break;
     default:
       ui.update(game, dt);
@@ -188,6 +192,10 @@ function frame(now) {
   while (acc >= CONFIG.FIXED_DT) {
     update(CONFIG.FIXED_DT);
     acc -= CONFIG.FIXED_DT;
+    // Consume edge-triggered input per tick: multiple ticks in one frame must
+    // not see the same keypress twice (pause would toggle itself back off),
+    // and frames with zero ticks must not drop presses (144 Hz displays).
+    input.endFrame();
   }
 
   fpsAcc += dt;
@@ -199,7 +207,6 @@ function frame(now) {
   }
 
   render();
-  input.endFrame();
   requestAnimationFrame(frame);
 }
 

@@ -20,10 +20,10 @@ export const ENEMIES = {
     split: { count: 2, child: 'asteroid_medium' },
   },
   asteroid_elite: {
-    id: 'asteroid_elite', name: 'Elite Asteroid', tier: 3, hp: 320, radius: 52,
-    speed: [18, 30], vrot: [-0.4, 0.4], contactDamage: 130, score: 220, gold: 16,
+    id: 'asteroid_elite', name: 'Elite Asteroid', tier: 3, hp: 720, radius: 58,
+    speed: [16, 28], vrot: [-0.4, 0.4], contactDamage: 180, score: 420, gold: 24,
     ai: 'drift', color: 'elite', render: 'asteroid', glow: 1,
-    split: { count: 3, child: 'asteroid_medium' }, chestChance: 0.25,
+    split: { count: 3, child: 'asteroid_medium' }, chestChance: 0.04,
   },
   shard: {
     id: 'shard', name: 'Crystal Shard', tier: 2, hp: 12, radius: 8,
@@ -47,9 +47,9 @@ export const ENEMIES = {
     chestChance: 1,
   },
   boss_colossus: {
-    id: 'boss_colossus', name: 'The Colossus', tier: 4, hp: 1500, radius: 90,
+    id: 'boss_colossus', name: 'The Hive', tier: 4, hp: 1500, radius: 78,
     speed: [14, 20], vrot: [-0.2, 0.2], contactDamage: 110, score: 1500, gold: 200,
-    ai: 'boss_colossus', color: 'boss', render: 'boss', glow: 2, split: null,
+    ai: 'boss_alien', color: 'boss', render: 'alienShip', glow: 3, split: null,
     chestChance: 1,
   },
   boss_mothership: {

@@ -80,8 +80,11 @@ row to a data table (plus a small behavior function).
 ## Tests
 
 ```bash
-node test/smoke.mjs      # headless logic smoke test
-node test/bossGate.mjs   # boss spawn-gating test
+node test/smoke.mjs       # headless logic smoke test
+node test/bossGate.mjs    # boss spawn-gating test
+node test/regressions.mjs # regression tests for fixed bugs
+node test/world.mjs       # bounded-world/camera/objective tests
+npm run test             # all of the above
 ```
 
 `test/headless.html` runs the full render path in a browser for verification.

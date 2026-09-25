@@ -22,6 +22,8 @@
   import { updateParticles } from '../src/systems/particles.js';
   import { updateWaveDirector } from '../src/systems/waveDirector.js';
   import { updateLeveling } from '../src/systems/leveling.js';
+  import { updateCamera } from '../src/systems/camera.js';
+  import { updateObjective } from '../src/systems/objectives.js';
   import { renderWorld } from '../src/systems/render.js';
   import * as ui from '../src/systems/ui.js';
 
@@ -49,6 +51,7 @@
     for (let i = 0; i < 300; i++) {
       updatePlayerControl(game, CONFIG.FIXED_DT);
       updateMovement(game, CONFIG.FIXED_DT);
+      updateCamera(game, CONFIG.FIXED_DT);
       updateWeapons(game, CONFIG.FIXED_DT);
       updateEnemyAI(game, CONFIG.FIXED_DT);
       updateCollision(game, CONFIG.FIXED_DT);
@@ -56,6 +59,7 @@
       updateParticles(game, CONFIG.FIXED_DT);
       updateWaveDirector(game, CONFIG.FIXED_DT);
       updateLeveling(game, CONFIG.FIXED_DT);
+      updateObjective(game, CONFIG.FIXED_DT);
       renderWorld(game, renderer);
       ui.render(game, renderer);
     }

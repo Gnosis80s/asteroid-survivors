@@ -4,18 +4,20 @@
 
 import {
   spawnPlayerBullet, spawnMissile, spawnBeam, spawnMine, spawnOrbital,
-  damageEnemy, spawnBolt,
+  damageTarget, spawnBolt,
 } from '../combat.js';
 
 const dmg = (base, level) => base * (1 + (level - 1) * 0.28);
 const shots = (base, level) => base + (level >= 3 ? 1 : 0) + (level >= 5 ? 1 : 0);
 
-// Nearest enemy within maxDist of (x,y), skipping any in `exclude`.
 function nearestInRange(world, x, y, maxDist, exclude) {
   let best = -1;
   let bestD = maxDist * maxDist;
-  for (const id of world.query('enemy', 'transform')) {
+  const targets = world.query('enemy', 'transform').concat(world.query('objective', 'transform'));
+  for (const id of targets) {
     if (exclude && exclude.has(id)) continue;
+    const objective = world.get(id, 'objective');
+    if (objective && objective.hp <= 0) continue;
     const t = world.get(id, 'transform');
     const d = (t.x - x) * (t.x - x) + (t.y - y) * (t.y - y);
     if (d <= bestD) {
@@ -147,7 +149,9 @@ export const WEAPONS = [
     fire(ctx, level) {
       const amt = ctx.stats.amount || 0;
       const count = 2 + (level >= 3 ? 1 : 0) + (level >= 5 ? 1 : 0) + amt;
-      const spec = `orbital:${count}`;
+      // Level is part of the spec so damage upgrades rebuild the orbs;
+      // the weapon system's per-frame sync reads each orb's stored level.
+      const spec = `orbital:${count}:${level}`;
       if (ctx.game.orbitalSpec !== spec) {
         ctx.game.orbitalSpec = spec;
         for (const id of ctx.game.orbitalIds) ctx.world.destroy(id);
@@ -171,7 +175,7 @@ export const WEAPONS = [
     fire(ctx, level) {
       const amt = ctx.stats.amount || 0;
       const count = 6 + (level - 1) * 2 + amt;
-      const spec = `titan:${count}`;
+      const spec = `titan:${count}:${level}`;
       if (ctx.game.orbitalSpec !== spec) {
         ctx.game.orbitalSpec = spec;
         for (const id of ctx.game.orbitalIds) ctx.world.destroy(id);
@@ -332,7 +336,7 @@ export const WEAPONS = [
       for (let jump = 0; jump < chains && cur >= 0; jump++) {
         hit.add(cur);
         const t = world.get(cur, 'transform');
-        damageEnemy(game, cur, boltDamage);
+        damageTarget(game, cur, boltDamage);
         spawnBolt(game, { x1: fx, y1: fy, x2: t.x, y2: t.y, ttl: 0.16 });
         fx = t.x;
         fy = t.y;
@@ -431,7 +435,7 @@ export const WEAPONS = [
         for (let jump = 0; jump < chains && cur >= 0; jump++) {
           hit.add(cur);
           const t = world.get(cur, 'transform');
-          damageEnemy(game, cur, boltDamage);
+          damageTarget(game, cur, boltDamage);
           spawnBolt(game, { x1: fx, y1: fy, x2: t.x, y2: t.y, ttl: 0.16 });
           fx = t.x;
           fy = t.y;
@@ -470,4 +474,17 @@ const WEAPON_TEXT = {
 
 export function weaponText(id) {
   return WEAPON_TEXT[id] || null;
+}
+
+const WEAPON_SOUND = {
+  machineGun: 'shoot', gatling: 'shoot', spreadShot: 'shoot', vulcanFan: 'shoot', hailstorm: 'shoot',
+  blaster: 'blaster', railgun: 'railgun', annihilator: 'railgun',
+  homingMissiles: 'missile', swarm: 'missile', clusterBomber: 'missile',
+  laserBeam: 'laser', doomRay: 'laser',
+  mineLayer: 'mineDeploy', minefield: 'mineDeploy',
+  arcCoil: 'zap', teslaLance: 'zap',
+};
+
+export function weaponSound(id) {
+  return WEAPON_SOUND[id] || null;
 }

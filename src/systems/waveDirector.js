@@ -2,7 +2,7 @@
 // Enemy count is capped for readability; difficulty scales with time/tier.
 
 import { CONFIG } from '../config.js';
-import { TIER_TABLES } from '../data/enemies.js';
+import { ENEMIES, TIER_TABLES } from '../data/enemies.js';
 import { spawnEnemy, randomOffscreenPos } from '../combat.js';
 import { weightedPick } from '../engine/math.js';
 
@@ -14,15 +14,18 @@ const BOSS_BY_TIME = {
 
 export function updateWaveDirector(game, dt) {
   game.time += dt;
-  if (!game.wd) game.wd = { timer: 0, bossFired: {}, subbossNext: 150 };
+  if (!game.wd) game.wd = { timer: 0, bossFired: {}, subbossNext: 150, spawnAccum: 0 };
   const wd = game.wd;
+
+  cullFarFromPlayer(game);
 
   for (const t of CONFIG.waves.bossTimes) {
     if (!wd.bossFired[t] && game.time >= t) {
       wd.bossFired[t] = true;
       const [x, y] = randomOffscreenPos(game);
-      game.bossAlive = spawnEnemy(game, BOSS_BY_TIME[t], x, y);
-      game.banner = { text: `⚠ ${t === 300 ? 'THE COLOSSUS' : t === 600 ? 'MOTHERSHIP' : 'SINGULARITY'} APPROACHES`, ttl: 3.5 };
+      const type = BOSS_BY_TIME[t];
+      game.bossAlive = spawnEnemy(game, type, x, y);
+      game.banner = { text: `⚠ ${ENEMIES[type].name.toUpperCase()} APPROACHES`, ttl: 3.5, alert: true };
       game.audio?.bossWarning?.();
     }
   }
@@ -33,7 +36,7 @@ export function updateWaveDirector(game, dt) {
     if (!bossActive(game) && countType(game, 'boss_warden') === 0) {
       const [x, y] = randomOffscreenPos(game);
       spawnEnemy(game, 'boss_warden', x, y);
-      game.banner = { text: '⚠ WARDEN INBOUND', ttl: 2.5 };
+      game.banner = { text: '⚠ WARDEN INBOUND', ttl: 2.5, alert: true };
       game.audio?.bossWarning?.();
     }
   }
@@ -55,8 +58,37 @@ function countType(game, type) {
   return n;
 }
 
+// Enemies that drift too far from the player are quietly despawned (except
+// bosses), so a long flight through the world doesn't leave a wake of hidden
+// enemies accumulating behind you.
+function cullFarFromPlayer(game) {
+  const pt = game.world.get(game.playerId, 'transform');
+  if (!pt) return;
+  const r2 = CONFIG.despawnRadius * CONFIG.despawnRadius;
+  const doomed = [];
+  for (const id of game.world.query('enemy')) {
+    const e = game.world.get(id, 'enemy');
+    if (!e || e.tier === 4) continue; // bosses roam the world until killed
+    const t = game.world.get(id, 'transform');
+    if (!t) continue;
+    const dx = t.x - pt.x, dy = t.y - pt.y;
+    if (dx * dx + dy * dy > r2) doomed.push(id);
+  }
+  for (const id of doomed) game.world.destroy(id);
+}
+
+// A boss is "active" while ANY tier-4 enemy lives, not just the one most
+// recently spawned — boss timers can overlap when the player is slow to kill.
+export function findLiveBossId(game) {
+  for (const id of game.world.query('enemy')) {
+    const e = game.world.get(id, 'enemy');
+    if (e && e.tier === 4) return id;
+  }
+  return -1;
+}
+
 function bossActive(game) {
-  return game.bossAlive >= 0 && !!game.world.get(game.bossAlive, 'enemy');
+  return findLiveBossId(game) >= 0;
 }
 
 function spawnBatch(game) {

@@ -6,9 +6,40 @@ export const CONFIG = {
   WIDTH: 1280,
   HEIGHT: 720,
 
+  // Larger explorable world the camera follows the player across.
+  // Enemies, pods and bosses live in this world space; the screen is a
+  // moving viewport onto it (Vampire-Survivors-style).
+  world: { width: 3200, height: 1800 },
+
+  // Camera follow smoothing (1/s). Higher = snappier.
+  camera: { smooth: 6 },
+
   // Fixed simulation timestep (seconds).
   FIXED_DT: 1 / 60,
   MAX_FRAME_DT: 0.1,
+
+  // Enemies/pickups farther than this from the player despawn, so the world
+  // never fills up with leftovers as you fly around. Bosses never despawn.
+  despawnRadius: 1500,
+
+  objective: {
+    count: 5,
+    timer: 30,
+    postDestroyDelay: 15,
+    hp: 100,
+    hitRadius: 24,
+    fireWarmup: 1.5,
+    fireInterval: 2.4,
+    fireDamage: 10,
+    fireSpeed: 190,
+    fireBurst: 3,
+    fireSpread: 0.18,
+    spawnMinGap: 260,
+    spawnMinFromPlayer: 200,
+    missWaveBase: 3,
+    missWaveGrowth: 1,
+    missWaveMax: 8,
+  },
 
   // Run length in seconds. Bosses arrive at 5:00, 10:00, 15:00.
   RUN_LENGTH: 15 * 60,
