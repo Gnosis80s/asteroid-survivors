@@ -45,7 +45,7 @@ function collect(game, id, p) {
   } else if (p.kind === 'chest') {
     game.onChest?.();
   } else if (p.kind === 'magnet') {
-    // Super magnet: pull every on-screen XP gem toward the player.
+    // Super magnet: pull every XP gem in the world toward the player.
     for (const gid of world.query('pickup', 'motion')) {
       const gp = world.get(gid, 'pickup');
       if (gp.kind === 'gem' && !gp.magnet) {

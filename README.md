@@ -2,12 +2,13 @@
 
 A 2D arcade roguelite that fuses the vector-graphics movement and physics of
 the classic **Asteroids** with the auto-battler progression of
-**Vampire Survivors**. Pilot a tiny ship through an endless asteroid field,
-auto-firing as you go, collecting experience gems and choosing upgrade cards
-until you survive the final boss.
+**Vampire Survivors**. Pilot a tiny ship through an asteroid field, auto-firing
+as you go, hunting down enemy beacons, collecting experience gems and choosing
+upgrade cards until you kill the final boss.
 
-Everything is rendered with line primitives and procedural glow on a pure
-black field — no sprites, no textures, no assets.
+Everything is drawn with line and circle primitives plus procedural glow and
+bloom on a pure black field, with a CRT pass on top — no image files, no sprite
+sheets, no audio files, no dependencies.
 
 ## Running
 
@@ -15,7 +16,7 @@ The game uses ES modules, so it must be served over HTTP (opening
 `index.html` directly via `file://` will be blocked by the browser).
 
 ```bash
-npm run serve          # python3 -m http.server 8000
+npm run serve          # python3 serve.py (sends no-store so browsers don't cache stale ES modules)
 # or
 npx serve
 # or
@@ -38,26 +39,36 @@ Then open **http://localhost:8000**.
 | `ESC` | Quit run (with confirmation) |
 
 Your ship **fires automatically**. On level-up the game pauses and offers three
-cards: `←` `→` (or `↑` `↓`) to select, `Enter` to choose, `R` to reroll,
-`B` to banish, `ESC` to skip.
+cards: `←` `→` (or `↑` `↓`) to select, `Enter` or `1` `2` `3` (or click) to
+choose, `R` to reroll, `B` to banish, `ESC` to skip. Each run starts with two
+rerolls, shared between rerolling and banishing.
 
 ## Gameplay
 
-- **Newtonian flight** — thrust, rotate, and brake in a wrap-around arena.
-- **Auto-battler weapons** — six base weapons, each with a level-5 cap and an
-  **evolution** (weapon at Lv5 + matching passive = a golden evolution card).
-- **Passives** — thirteen stat passives, including reverse thrust, projectile
-  count, HP regen, luck, and armor.
+- **Newtonian flight** — thrust, rotate, and dash through a bounded 3200×1800
+  arena. The camera follows you, and enemies that drift too far away despawn.
+- **Beacon contract** — the main objective. Destroy the enemy beacon before its
+  30-second timer runs out; five beacons per cycle, then the contract repeats
+  forever. Each kill pays credits plus a high-value red gem. Let one time out
+  and a wave of ships inbound, growing with every miss. Live beacons shoot back.
+- **Auto-battler weapons** — nine base weapons, each capped at level 5, with
+  **seven evolutions** (Lv5 weapon + its matching passive) and **four unions**
+  (any two maxed weapons). Six weapon and six passive slots.
+- **Passives** — fifteen stat passives, including reverse thrust, projectile
+  count, hull regen, luck, and armor.
 - **Enemies** — asteroids (small/medium/large/elite), homing crystal shards,
-  saucers, and the **Warden** sub-boss every 2.5 minutes.
-- **Bosses** — the Colossus (5:00), Mothership (10:00), and Singularity
-  (15:00). Survive the Singularity to win.
-- **Pickups** — XP gems, hearts, the blue **Vacuum** orb (pulls in all gems),
-  and **Salvage Pods** (reward crates dropped by elites, the Warden, and
-  bosses) that grant free upgrade cards, evolutions, and credits.
+  saucer scouts and gunners, and the **Warden** sub-boss every 2.5 minutes.
+- **Bosses** — **The Hive** (5:00), **Mothership** (10:00), and **Singularity**
+  (15:00). Asteroid waves pause while a boss is alive. Kill the Singularity to
+  win.
+- **Pickups** — green XP gems, high-value red gems (every 25th gem drop and
+  every beacon), hearts, the blue **Vacuum** orb (pulls in every gem), and
+  **Salvage Pods**/crates (dropped by elites, the Warden, and bosses) that grant
+  free upgrade cards, evolutions, and credits.
 - **Meta progression** — earn credits each run, then spend them on permanent
   upgrades and unlockable ships (Voyager, Dart, Titan). Upgrades can be sold
-  back.
+  back. Best time, level, and credits are tracked across runs.
+- **Options** — toggle the minimap or reset all progress from the main menu.
 
 ## Architecture
 
@@ -65,12 +76,17 @@ cards: `←` `→` (or `↑` `↓`) to select, `Enter` to choose, `R` to reroll,
 src/
   engine/     math, input, ECS, spatial hash, renderer, audio
   data/       weapons, passives, enemies, glyphs (all data-driven)
-  systems/    gameplay + UI systems
+  systems/    camera, movement, playerControl, weaponSystem, enemyAI,
+              collision, objectives, pickups, particles, waveDirector,
+              leveling, render, ui
   combat.js   shared entity spawning + damage/health logic
   state.js    run lifecycle, derived stats, upgrade-card generation
   save.js     localStorage meta-progression
   main.js     boot + fixed-timestep game loop
 ```
+
+Zero dependencies and no build step: plain ES modules, one `<script>`, and the
+Canvas 2D API. Audio is synthesized with WebAudio at runtime.
 
 The game uses a lightweight hand-rolled **Entity-Component-System**: entities
 are integer IDs, components are plain data maps, and systems run in a fixed
